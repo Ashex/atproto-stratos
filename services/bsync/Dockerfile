@@ -23,16 +23,18 @@ COPY ./packages/syntax ./packages/syntax
 
 COPY ./services/bsync ./services/bsync
 
+RUN node -e "const fs=require('fs'),path=require('path');const stripWsDev=(file)=>{if(!fs.existsSync(file))return;const pkg=JSON.parse(fs.readFileSync(file,'utf8'));const dd=pkg.devDependencies;if(dd){for(const k of Object.keys(dd)){if(dd[k].startsWith('workspace:'))delete dd[k];}}fs.writeFileSync(file,JSON.stringify(pkg,null,2)+'\n');};const walk=(dir)=>{if(!fs.existsSync(dir))return;for(const e of fs.readdirSync(dir,{withFileTypes:true})){if(e.isDirectory())walk(path.join(dir,e.name));else if(e.name==='package.json')stripWsDev(path.join(dir,e.name));}};stripWsDev('package.json');walk('packages');walk('services');"
+
 # install all deps
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 # build all packages with external node_modules
 RUN pnpm run --recursive --stream --filter '@atproto/bsync...' build
 # clean up
 RUN rm -rf node_modules
 # install only prod deps, hoisted to root node_modules dir
-RUN pnpm install --prod --shamefully-hoist --frozen-lockfile --prefer-offline
+RUN pnpm install --prod --shamefully-hoist --no-frozen-lockfile --prefer-offline
 
-WORKDIR services/bsync
+WORKDIR /app/services/bsync
 
 # Uses assets from build stage to reduce build size
 FROM node:24-alpine
@@ -40,6 +42,7 @@ FROM node:24-alpine
 RUN apk add --update dumb-init
 
 ADD https://truststore.pki.rds.amazonaws.com/eu-central-1/eu-central-1-bundle.pem /usr/local/share/rds-combined-ca-bundle.pem
+RUN chmod 644 /usr/local/share/rds-combined-ca-bundle.pem
 ENV NODE_EXTRA_CA_CERTS=/usr/local/share/rds-combined-ca-bundle.pem
 
 # Avoid zombie processes, handle signal forwarding

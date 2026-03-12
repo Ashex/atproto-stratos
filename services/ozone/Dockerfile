@@ -11,38 +11,20 @@ RUN corepack prepare --activate
 COPY ./*.* ./
 COPY ./tsconfig ./tsconfig
 COPY ./lexicons ./lexicons
-COPY ./packages/internal ./packages/internal
-COPY ./packages/lex ./packages/lex
+COPY ./packages/lex/lex-cbor ./packages/lex/lex-cbor
+COPY ./packages/lex/lex-data ./packages/lex/lex-data
+COPY ./packages/lex/lex-json ./packages/lex/lex-json
 
-# NOTE ozones's transitive dependencies go here: if that changes, this needs to be updated.
-# pnpm list --filter '@atproto/aws...' --filter '@atproto/ozone...' --depth 0 --json | jq '.[].path' | grep -v "/lex/" | grep -v "/internal/" | sort -u
+# NOTE: keep this list aligned with @atproto/aws and @atproto/ozone runtime dependencies.
 COPY ./packages/api ./packages/api
 COPY ./packages/aws ./packages/aws
-COPY ./packages/bsky ./packages/bsky
 COPY ./packages/common ./packages/common
 COPY ./packages/common-web ./packages/common-web
 COPY ./packages/crypto ./packages/crypto
-COPY ./packages/did ./packages/did
 COPY ./packages/identity ./packages/identity
-COPY ./packages/lex-cli ./packages/lex-cli
 COPY ./packages/lexicon ./packages/lexicon
-COPY ./packages/lexicon-resolver ./packages/lexicon-resolver
-COPY ./packages/oauth/jwk ./packages/oauth/jwk
-COPY ./packages/oauth/jwk-jose ./packages/oauth/jwk-jose
-COPY ./packages/oauth/jwk-webcrypto ./packages/oauth/jwk-webcrypto
-COPY ./packages/oauth/oauth-client ./packages/oauth/oauth-client
-COPY ./packages/oauth/oauth-client-browser ./packages/oauth/oauth-client-browser
-COPY ./packages/oauth/oauth-client-browser-example ./packages/oauth/oauth-client-browser-example
-COPY ./packages/oauth/oauth-provider ./packages/oauth/oauth-provider
-COPY ./packages/oauth/oauth-provider-api ./packages/oauth/oauth-provider-api
-COPY ./packages/oauth/oauth-provider-frontend ./packages/oauth/oauth-provider-frontend
-COPY ./packages/oauth/oauth-provider-ui ./packages/oauth/oauth-provider-ui
-COPY ./packages/oauth/oauth-scopes ./packages/oauth/oauth-scopes
-COPY ./packages/oauth/oauth-types ./packages/oauth/oauth-types
 COPY ./packages/ozone ./packages/ozone
-COPY ./packages/pds ./packages/pds
 COPY ./packages/repo ./packages/repo
-COPY ./packages/sync ./packages/sync
 COPY ./packages/syntax ./packages/syntax
 COPY ./packages/ws-client ./packages/ws-client
 COPY ./packages/xrpc ./packages/xrpc
@@ -50,16 +32,18 @@ COPY ./packages/xrpc-server ./packages/xrpc-server
 
 COPY ./services/ozone ./services/ozone
 
+RUN node -e "const fs=require('fs'),path=require('path');const stripWsDev=(file)=>{if(!fs.existsSync(file))return;const pkg=JSON.parse(fs.readFileSync(file,'utf8'));const dd=pkg.devDependencies;if(dd){for(const k of Object.keys(dd)){if(dd[k].startsWith('workspace:'))delete dd[k];}}fs.writeFileSync(file,JSON.stringify(pkg,null,2)+'\n');};const walk=(dir)=>{if(!fs.existsSync(dir))return;for(const e of fs.readdirSync(dir,{withFileTypes:true})){if(e.isDirectory())walk(path.join(dir,e.name));else if(e.name==='package.json')stripWsDev(path.join(dir,e.name));}};stripWsDev('package.json');walk('packages');walk('services');"
+
 # install all deps
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 # build all packages with external node_modules
 RUN pnpm run --recursive --stream --filter '@atproto/aws...' --filter '@atproto/ozone...' build
 # clean up
 RUN rm -rf node_modules
 # install only prod deps, hoisted to root node_modules dir
-RUN pnpm install --prod --shamefully-hoist --frozen-lockfile --prefer-offline
+RUN pnpm install --prod --shamefully-hoist --no-frozen-lockfile --prefer-offline
 
-WORKDIR services/ozone
+WORKDIR /app/services/ozone
 
 # Uses assets from build stage to reduce build size
 FROM node:18-alpine
