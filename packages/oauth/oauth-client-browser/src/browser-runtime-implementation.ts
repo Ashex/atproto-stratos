@@ -12,7 +12,9 @@ import {
 const nativeRequestLock: undefined | RuntimeLock =
   typeof navigator !== 'undefined' && navigator.locks?.request
     ? <T>(name: string, fn: () => T | PromiseLike<T>): Promise<T> =>
-        navigator.locks.request(name, { mode: 'exclusive' }, async () => fn())
+        navigator.locks.request(name, { mode: 'exclusive' }, () =>
+          fn(),
+        ) as Promise<T>
     : undefined
 
 export class BrowserRuntimeImplementation implements RuntimeImplementation {
@@ -51,7 +53,7 @@ export class BrowserRuntimeImplementation implements RuntimeImplementation {
       case 'sha256':
       case 'sha384':
       case 'sha512': {
-        const buf = await crypto.subtle.digest(`SHA-${name.slice(3)}`, data)
+        const buf = await crypto.subtle.digest(`SHA-${name.slice(3)}`, data as BufferSource)
         return new Uint8Array(buf)
       }
       default:

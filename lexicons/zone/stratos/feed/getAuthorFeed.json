@@ -1,0 +1,55 @@
+{
+  "lexicon": 1,
+  "id": "zone.stratos.feed.getAuthorFeed",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Get a feed of Stratos posts by a specific author. Returns posts filtered by the viewer's enrolled boundaries.",
+      "parameters": {
+        "type": "params",
+        "required": ["actor"],
+        "properties": {
+          "actor": {
+            "type": "string",
+            "format": "at-identifier",
+            "description": "DID or handle of the author."
+          },
+          "boundary": {
+            "type": "string",
+            "description": "Optional boundary filter."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50,
+            "description": "Maximum number of posts to return."
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Pagination cursor."
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["feed"],
+          "properties": {
+            "cursor": {
+              "type": "string"
+            },
+            "feed": {
+              "type": "array",
+              "items": {
+                "type": "ref",
+                "ref": "app.bsky.feed.defs#feedViewPost"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

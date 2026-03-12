@@ -1,0 +1,108 @@
+import { Keypair } from '@atproto/crypto'
+import { createStratosSyncToken } from './auth'
+import { StratosStore } from './store'
+
+export interface EnrollmentManagerConfig {
+  stratosServiceUrl: string
+  stratosServiceDid: string
+  appviewDid: string
+  signingKey: Keypair
+  refreshIntervalMs: number
+}
+
+export class StratosEnrollmentManager {
+  private refreshTimer: ReturnType<typeof setInterval> | null = null
+
+  constructor(
+    private store: StratosStore,
+    private config: EnrollmentManagerConfig,
+  ) {}
+
+  start(): void {
+    if (this.config.refreshIntervalMs > 0) {
+      this.refreshTimer = setInterval(
+        () => void this.refreshAll(),
+        this.config.refreshIntervalMs,
+      )
+    }
+  }
+
+  stop(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer)
+      this.refreshTimer = null
+    }
+  }
+
+  async isEnrolled(did: string): Promise<boolean> {
+    return this.store.isEnrolled(did)
+  }
+
+  async getBoundaries(viewerDid: string): Promise<string[]> {
+    const cached = await this.store.getBoundaries(viewerDid)
+    if (cached.length > 0) return cached
+
+    // Fallback: query Stratos service directly
+    const enrollment = await this.fetchEnrollmentFromStratos(viewerDid)
+    if (!enrollment) return []
+    return enrollment.boundaries
+  }
+
+  async getEnrollment(did: string) {
+    const cached = await this.store.getEnrollment(did)
+    if (cached) return cached
+
+    const fetched = await this.fetchEnrollmentFromStratos(did)
+    if (!fetched) return null
+
+    await this.store.upsertEnrollment(fetched)
+    return this.store.getEnrollment(did)
+  }
+
+  private async fetchEnrollmentFromStratos(did: string): Promise<{
+    did: string
+    serviceUrl: string
+    enrolledAt: string
+    boundaries: string[]
+  } | null> {
+    const token = await createStratosSyncToken(
+      this.config.signingKey,
+      this.config.appviewDid,
+      this.config.stratosServiceDid,
+      'zone.stratos.enrollment.status',
+    )
+
+    const url = new URL(
+      `/xrpc/zone.stratos.enrollment.status?did=${encodeURIComponent(did)}`,
+      this.config.stratosServiceUrl,
+    )
+
+    const res = await fetch(url.toString(), {
+      headers: { authorization: `Bearer ${token}` },
+    })
+
+    if (!res.ok) return null
+
+    const body = (await res.json()) as {
+      did: string
+      enrolled: boolean
+      enrolledAt?: string
+      boundaries?: string[]
+    }
+
+    if (!body.enrolled) return null
+
+    return {
+      did: body.did,
+      serviceUrl: this.config.stratosServiceUrl,
+      enrolledAt: body.enrolledAt ?? new Date().toISOString(),
+      boundaries: body.boundaries ?? [],
+    }
+  }
+
+  private async refreshAll(): Promise<void> {
+    // Placeholder: iterate enrolled users and refresh their data
+    // In production, this would page through stratos_enrollment
+    // and call fetchEnrollmentFromStratos for each
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "lexicon": 1,
+  "id": "zone.stratos.feed.getTimeline",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Get a view of the Stratos feed timeline for the authenticated user. Returns posts filtered by the viewer's enrolled boundaries.",
+      "parameters": {
+        "type": "params",
+        "properties": {
+          "boundary": {
+            "type": "string",
+            "description": "Optional boundary filter. If provided, only show posts with this boundary."
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 50,
+            "description": "Maximum number of posts to return."
+          },
+          "cursor": {
+            "type": "string",
+            "description": "Pagination cursor."
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["feed"],
+          "properties": {
+            "cursor": {
+              "type": "string"
+            },
+            "feed": {
+              "type": "array",
+              "items": {
+                "type": "ref",
+                "ref": "app.bsky.feed.defs#feedViewPost"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

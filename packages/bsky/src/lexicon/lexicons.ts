@@ -15391,7 +15391,303 @@ export const schemaDict = {
     },
   },
 } as const satisfies Record<string, LexiconDoc>
-export const schemas = Object.values(schemaDict) satisfies LexiconDoc[]
+
+export const stratosSchemaDict = {
+  ZoneStratosDefs: {
+    lexicon: 1,
+    id: 'zone.stratos.defs',
+    defs: {
+      source: {
+        type: 'object',
+        required: ['vary', 'subject', 'service'],
+        properties: {
+          vary: {
+            type: 'string',
+            knownValues: ['authenticated', 'unauthenticated'],
+            maxLength: 128,
+          },
+          subject: {
+            type: 'ref',
+            ref: 'lex:zone.stratos.defs#subjectRef',
+          },
+          service: {
+            type: 'string',
+            format: 'did',
+          },
+        },
+      },
+      subjectRef: {
+        type: 'object',
+        required: ['uri', 'cid'],
+        properties: {
+          uri: {
+            type: 'string',
+            format: 'at-uri',
+          },
+          cid: {
+            type: 'string',
+            format: 'cid',
+          },
+        },
+      },
+    },
+  },
+  ZoneStratosBoundaryDefs: {
+    lexicon: 1,
+    id: 'zone.stratos.boundary.defs',
+    defs: {
+      Domain: {
+        type: 'object',
+        required: ['value'],
+        properties: {
+          value: {
+            type: 'string',
+            maxLength: 253,
+          },
+        },
+      },
+      Domains: {
+        type: 'object',
+        required: ['values'],
+        properties: {
+          values: {
+            type: 'array',
+            items: {
+              type: 'ref',
+              ref: 'lex:zone.stratos.boundary.defs#Domain',
+            },
+            maxLength: 10,
+          },
+        },
+      },
+    },
+  },
+  ZoneStratosFeedPost: {
+    lexicon: 1,
+    id: 'zone.stratos.feed.post',
+    defs: {
+      main: {
+        type: 'record',
+        key: 'tid',
+        record: {
+          type: 'object',
+          required: ['createdAt'],
+          properties: {
+            source: {
+              type: 'ref',
+              ref: 'lex:zone.stratos.defs#source',
+            },
+            text: {
+              type: 'string',
+              maxLength: 3000,
+              maxGraphemes: 300,
+            },
+            boundary: {
+              type: 'union',
+              refs: ['lex:zone.stratos.boundary.defs#Domains'],
+            },
+            facets: {
+              type: 'array',
+              items: {
+                type: 'ref',
+                ref: 'lex:app.bsky.richtext.facet',
+              },
+            },
+            reply: {
+              type: 'ref',
+              ref: 'lex:zone.stratos.feed.post#replyRef',
+            },
+            embed: {
+              type: 'union',
+              refs: [
+                'lex:app.bsky.embed.images',
+                'lex:app.bsky.embed.video',
+                'lex:app.bsky.embed.external',
+                'lex:app.bsky.embed.record',
+                'lex:app.bsky.embed.recordWithMedia',
+              ],
+            },
+            langs: {
+              type: 'array',
+              maxLength: 3,
+              items: {
+                type: 'string',
+                format: 'language',
+              },
+            },
+            labels: {
+              type: 'union',
+              refs: ['lex:com.atproto.label.defs#selfLabels'],
+            },
+            tags: {
+              type: 'array',
+              maxLength: 8,
+              items: {
+                type: 'string',
+                maxLength: 640,
+                maxGraphemes: 64,
+              },
+            },
+            createdAt: {
+              type: 'string',
+              format: 'datetime',
+            },
+          },
+        },
+      },
+      replyRef: {
+        type: 'object',
+        required: ['root', 'parent'],
+        properties: {
+          root: {
+            type: 'ref',
+            ref: 'lex:com.atproto.repo.strongRef',
+          },
+          parent: {
+            type: 'ref',
+            ref: 'lex:com.atproto.repo.strongRef',
+          },
+        },
+      },
+    },
+  },
+  ZoneStratosFeedGetTimeline: {
+    lexicon: 1,
+    id: 'zone.stratos.feed.getTimeline',
+    defs: {
+      main: {
+        type: 'query',
+        parameters: {
+          type: 'params',
+          properties: {
+            boundary: {
+              type: 'string',
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 100,
+              default: 50,
+            },
+            cursor: {
+              type: 'string',
+            },
+          },
+        },
+        output: {
+          encoding: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['feed'],
+            properties: {
+              cursor: {
+                type: 'string',
+              },
+              feed: {
+                type: 'array',
+                items: {
+                  type: 'ref',
+                  ref: 'lex:app.bsky.feed.defs#feedViewPost',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  ZoneStratosFeedGetPost: {
+    lexicon: 1,
+    id: 'zone.stratos.feed.getPost',
+    defs: {
+      main: {
+        type: 'query',
+        parameters: {
+          type: 'params',
+          required: ['uri'],
+          properties: {
+            uri: {
+              type: 'string',
+              format: 'at-uri',
+            },
+          },
+        },
+        output: {
+          encoding: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['post'],
+            properties: {
+              post: {
+                type: 'ref',
+                ref: 'lex:app.bsky.feed.defs#feedViewPost',
+              },
+            },
+          },
+        },
+        errors: [
+          { name: 'PostNotFound' },
+          { name: 'NotEnrolled' },
+          { name: 'BoundaryMismatch' },
+        ],
+      },
+    },
+  },
+  ZoneStratosFeedGetAuthorFeed: {
+    lexicon: 1,
+    id: 'zone.stratos.feed.getAuthorFeed',
+    defs: {
+      main: {
+        type: 'query',
+        parameters: {
+          type: 'params',
+          required: ['actor'],
+          properties: {
+            actor: {
+              type: 'string',
+              format: 'at-identifier',
+            },
+            boundary: {
+              type: 'string',
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 100,
+              default: 50,
+            },
+            cursor: {
+              type: 'string',
+            },
+          },
+        },
+        output: {
+          encoding: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['feed'],
+            properties: {
+              cursor: {
+                type: 'string',
+              },
+              feed: {
+                type: 'array',
+                items: {
+                  type: 'ref',
+                  ref: 'lex:app.bsky.feed.defs#feedViewPost',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const satisfies Record<string, LexiconDoc>
+export const schemas = [
+  ...Object.values(schemaDict),
+  ...Object.values(stratosSchemaDict),
+] satisfies LexiconDoc[]
 export const lexicons: Lexicons = new Lexicons(schemas)
 
 export function validate<T extends { $type: string }>(
@@ -15713,4 +16009,10 @@ export const ids = {
   ComAtprotoTempRevokeAccountCredentials:
     'com.atproto.temp.revokeAccountCredentials',
   ComGermnetworkDeclaration: 'com.germnetwork.declaration',
+  ZoneStratosDefs: 'zone.stratos.defs',
+  ZoneStratosBoundaryDefs: 'zone.stratos.boundary.defs',
+  ZoneStratosFeedPost: 'zone.stratos.feed.post',
+  ZoneStratosFeedGetTimeline: 'zone.stratos.feed.getTimeline',
+  ZoneStratosFeedGetPost: 'zone.stratos.feed.getPost',
+  ZoneStratosFeedGetAuthorFeed: 'zone.stratos.feed.getAuthorFeed',
 } as const

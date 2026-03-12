@@ -1,0 +1,39 @@
+{
+  "lexicon": 1,
+  "id": "zone.stratos.feed.getPost",
+  "defs": {
+    "main": {
+      "type": "query",
+      "description": "Get a single Stratos post by URI. Returns the post if the authenticated viewer has an overlapping boundary.",
+      "parameters": {
+        "type": "params",
+        "required": ["uri"],
+        "properties": {
+          "uri": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "AT-URI of the Stratos post."
+          }
+        }
+      },
+      "output": {
+        "encoding": "application/json",
+        "schema": {
+          "type": "object",
+          "required": ["post"],
+          "properties": {
+            "post": {
+              "type": "ref",
+              "ref": "app.bsky.feed.defs#feedViewPost"
+            }
+          }
+        }
+      },
+      "errors": [
+        { "name": "PostNotFound" },
+        { "name": "NotEnrolled" },
+        { "name": "BoundaryMismatch" }
+      ]
+    }
+  }
+}

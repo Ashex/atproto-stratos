@@ -38,6 +38,9 @@ import getRepostedBy from './app/bsky/feed/getRepostedBy'
 import getSuggestedFeeds from './app/bsky/feed/getSuggestedFeeds'
 import getTimeline from './app/bsky/feed/getTimeline'
 import searchPosts from './app/bsky/feed/searchPosts'
+import stratosGetTimeline from './zone/stratos/feed/getTimeline'
+import stratosGetPost from './zone/stratos/feed/getPost'
+import stratosGetAuthorFeed from './zone/stratos/feed/getAuthorFeed'
 import getActorStarterPacks from './app/bsky/graph/getActorStarterPacks'
 import getBlocks from './app/bsky/graph/getBlocks'
 import getFollowers from './app/bsky/graph/getFollowers'
@@ -198,5 +201,9 @@ export default function (server: Server, ctx: AppContext) {
   getRecord(server, ctx)
   fetchLabels(server, ctx)
   queryLabels(server, ctx)
+  // zone.stratos
+  stratosGetTimeline(server, ctx)
+  stratosGetPost(server, ctx)
+  stratosGetAuthorFeed(server, ctx)
   return server
 }

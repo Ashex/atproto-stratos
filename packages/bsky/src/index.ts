@@ -22,6 +22,7 @@ import {
   EtcdHostList,
   createDataPlaneClient,
 } from './data-plane/client'
+import { Database } from './data-plane/server/db'
 import * as error from './error'
 import { FeatureGates } from './feature-gates'
 import { Hydrator } from './hydration/hydrator'
@@ -32,6 +33,9 @@ import { createServer } from './lexicon'
 import { loggerMiddleware } from './logger'
 import { authWithApiKey as rolodexAuth, createRolodexClient } from './rolodex'
 import { createStashClient } from './stash'
+import { StratosStore } from './stratos/store'
+import { StratosEnrollmentManager } from './stratos/enrollment-manager'
+import { StratosIndexer } from './stratos/indexer'
 import { Views } from './views'
 import { VideoUriBuilder } from './views/util'
 
@@ -48,10 +52,12 @@ export class BskyAppView {
   public app: express.Application
   public server?: http.Server
   private terminator?: HttpTerminator
+  private stratosDb?: Database
 
-  constructor(opts: { ctx: AppContext; app: express.Application }) {
+  constructor(opts: { ctx: AppContext; app: express.Application; stratosDb?: Database }) {
     this.ctx = opts.ctx
     this.app = opts.app
+    this.stratosDb = opts.stratosDb
   }
 
   static create(opts: {
@@ -201,6 +207,38 @@ export class BskyAppView {
 
     const blobDispatcher = createBlobDispatcher(config)
 
+    let stratosStore: StratosStore | undefined
+    let stratosEnrollmentManager: StratosEnrollmentManager | undefined
+    let stratosIndexer: StratosIndexer | undefined
+    let stratosDb: Database | undefined
+
+    if (config.stratosDbUrl && config.stratosServiceUrl && config.stratosServiceDid) {
+      stratosDb = new Database({
+        url: config.stratosDbUrl,
+        poolSize: 5,
+      })
+      stratosStore = new StratosStore(stratosDb.db)
+      stratosEnrollmentManager = new StratosEnrollmentManager(stratosStore, {
+        stratosServiceUrl: config.stratosServiceUrl,
+        stratosServiceDid: config.stratosServiceDid,
+        appviewDid: config.serverDid,
+        signingKey,
+        refreshIntervalMs: 5 * 60 * 1000,
+      })
+      if (config.stratosSyncEnabled) {
+        stratosIndexer = new StratosIndexer(
+          stratosDb.db,
+          stratosStore,
+          {
+            stratosServiceUrl: config.stratosServiceUrl,
+            stratosServiceDid: config.stratosServiceDid,
+            appviewDid: config.serverDid,
+            signingKey,
+          },
+        )
+      }
+    }
+
     const ctx = new AppContext({
       cfg: config,
       etcd,
@@ -221,6 +259,9 @@ export class BskyAppView {
       featureGates,
       blobDispatcher,
       kwsClient,
+      stratosStore,
+      stratosEnrollmentManager,
+      stratosIndexer,
     })
 
     let server = createServer({
@@ -247,7 +288,7 @@ export class BskyAppView {
     app.use(error.handler)
     app.use('/external', external.createRouter(ctx))
 
-    return new BskyAppView({ ctx, app })
+    return new BskyAppView({ ctx, app, stratosDb })
   }
 
   async start(): Promise<http.Server> {
@@ -255,6 +296,12 @@ export class BskyAppView {
       await this.ctx.dataplaneHostList.connect()
     }
     await this.ctx.featureGates.start()
+    if (this.ctx.stratosEnrollmentManager) {
+      this.ctx.stratosEnrollmentManager.start()
+    }
+    if (this.ctx.stratosIndexer) {
+      await this.ctx.stratosIndexer.start()
+    }
     const server = this.app.listen(this.ctx.cfg.port)
     this.server = server
     server.keepAliveTimeout = 90000
@@ -266,9 +313,18 @@ export class BskyAppView {
   }
 
   async destroy(): Promise<void> {
+    if (this.ctx.stratosIndexer) {
+      await this.ctx.stratosIndexer.stop()
+    }
+    if (this.ctx.stratosEnrollmentManager) {
+      this.ctx.stratosEnrollmentManager.stop()
+    }
     this.ctx.featureGates.destroy()
     await this.terminator?.terminate()
     await this.ctx.etcd?.close()
+    if (this.stratosDb) {
+      await this.stratosDb.close()
+    }
   }
 }
 

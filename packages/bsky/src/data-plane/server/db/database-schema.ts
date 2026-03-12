@@ -1,6 +1,10 @@
 import { Kysely } from 'kysely'
 import * as activitySubscription from './tables/activity-subscription'
 import * as actor from './tables/actor'
+import * as stratosPost from './tables/stratos-post'
+import * as stratosPostBoundary from './tables/stratos-post-boundary'
+import * as stratosEnrollment from './tables/stratos-enrollment'
+import * as stratosSyncCursor from './tables/stratos-sync-cursor'
 import * as actorBlock from './tables/actor-block'
 import * as actorState from './tables/actor-state'
 import * as actorSync from './tables/actor-sync'
@@ -85,6 +89,10 @@ export type DatabaseSchemaType = duplicateRecord.PartialDB &
   privateData.PartialDB &
   activitySubscription.PartialDB &
   bookmark.PartialDB &
-  draft.PartialDB
+  draft.PartialDB &
+  stratosPost.PartialDB &
+  stratosPostBoundary.PartialDB &
+  stratosEnrollment.PartialDB &
+  stratosSyncCursor.PartialDB
 
 export type DatabaseSchema = Kysely<DatabaseSchemaType>

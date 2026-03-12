@@ -220,6 +220,9 @@ import * as ComAtprotoTempDereferenceScope from './types/com/atproto/temp/derefe
 import * as ComAtprotoTempFetchLabels from './types/com/atproto/temp/fetchLabels.js'
 import * as ComAtprotoTempRequestPhoneVerification from './types/com/atproto/temp/requestPhoneVerification.js'
 import * as ComAtprotoTempRevokeAccountCredentials from './types/com/atproto/temp/revokeAccountCredentials.js'
+import * as ZoneStratosFeedGetTimeline from './types/zone/stratos/feed/getTimeline.js'
+import * as ZoneStratosFeedGetPost from './types/zone/stratos/feed/getPost.js'
+import * as ZoneStratosFeedGetAuthorFeed from './types/zone/stratos/feed/getAuthorFeed.js'
 
 export const APP_BSKY_ACTOR = {
   StatusLive: 'app.bsky.actor.status#live',
@@ -264,12 +267,14 @@ export class Server {
   app: AppNS
   chat: ChatNS
   com: ComNS
+  zone: ZoneNS
 
   constructor(options?: XrpcOptions) {
     this.xrpc = createXrpcServer(schemas, options)
     this.app = new AppNS(this)
     this.chat = new ChatNS(this)
     this.com = new ComNS(this)
+    this.zone = new ZoneNS(this)
   }
 }
 
@@ -3105,4 +3110,77 @@ export class ComGermnetworkNS {
   }
 }
 
+export class ZoneNS {
+  _server: Server
+  stratos: ZoneStratosNS
+
+  constructor(server: Server) {
+    this._server = server
+    this.stratos = new ZoneStratosNS(server)
+  }
+}
+
+export class ZoneStratosNS {
+  _server: Server
+  boundary: ZoneStratosBoundaryNS
+  feed: ZoneStratosFeedNS
+
+  constructor(server: Server) {
+    this._server = server
+    this.boundary = new ZoneStratosBoundaryNS(server)
+    this.feed = new ZoneStratosFeedNS(server)
+  }
+}
+
+export class ZoneStratosBoundaryNS {
+  _server: Server
+
+  constructor(server: Server) {
+    this._server = server
+  }
+}
+
+export class ZoneStratosFeedNS {
+  _server: Server
+
+  constructor(server: Server) {
+    this._server = server
+  }
+
+  getTimeline<A extends Auth = void>(
+    cfg: MethodConfigOrHandler<
+      A,
+      ZoneStratosFeedGetTimeline.QueryParams,
+      ZoneStratosFeedGetTimeline.HandlerInput,
+      ZoneStratosFeedGetTimeline.HandlerOutput
+    >,
+  ) {
+    const nsid = 'zone.stratos.feed.getTimeline' // @ts-ignore
+    return this._server.xrpc.method(nsid, cfg)
+  }
+
+  getPost<A extends Auth = void>(
+    cfg: MethodConfigOrHandler<
+      A,
+      ZoneStratosFeedGetPost.QueryParams,
+      ZoneStratosFeedGetPost.HandlerInput,
+      ZoneStratosFeedGetPost.HandlerOutput
+    >,
+  ) {
+    const nsid = 'zone.stratos.feed.getPost' // @ts-ignore
+    return this._server.xrpc.method(nsid, cfg)
+  }
+
+  getAuthorFeed<A extends Auth = void>(
+    cfg: MethodConfigOrHandler<
+      A,
+      ZoneStratosFeedGetAuthorFeed.QueryParams,
+      ZoneStratosFeedGetAuthorFeed.HandlerInput,
+      ZoneStratosFeedGetAuthorFeed.HandlerOutput
+    >,
+  ) {
+    const nsid = 'zone.stratos.feed.getAuthorFeed' // @ts-ignore
+    return this._server.xrpc.method(nsid, cfg)
+  }
+}
 
