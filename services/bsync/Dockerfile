@@ -39,6 +39,9 @@ FROM node:24-alpine
 
 RUN apk add --update dumb-init
 
+ADD https://truststore.pki.rds.amazonaws.com/eu-central-1/eu-central-1-bundle.pem /usr/local/share/rds-combined-ca-bundle.pem
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/rds-combined-ca-bundle.pem
+
 # Avoid zombie processes, handle signal forwarding
 ENTRYPOINT ["dumb-init", "--"]
 
