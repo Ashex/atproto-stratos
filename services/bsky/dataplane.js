@@ -26,6 +26,7 @@ const main = async () => {
   await db.migrateToLatestOrThrow()
   console.log('Migrations complete')
 
+  console.log('Creating DataPlane server...')
   const server = await DataPlaneServer.create({
     db,
     port,
@@ -34,11 +35,14 @@ const main = async () => {
     redisPassword,
   })
   console.log('DataPlane server listening on port', port)
+  console.log('PLC URL:', plcUrl)
 
   const shutdown = async () => {
-    console.log('Shutting down DataPlane server...')
+    console.log('Received shutdown signal, shutting down DataPlane server...')
     await server.destroy()
+    console.log('DataPlane server destroyed')
     await db.close()
+    console.log('Database connection closed')
     process.exit(0)
   }
 
