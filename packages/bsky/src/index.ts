@@ -79,7 +79,14 @@ export class BskyAppView {
       }
       return result
     })
-    app.use(cors({ maxAge: DAY / SECOND }))
+    app.use(
+      cors({
+        origin: true,
+        credentials: true,
+        maxAge: DAY / SECOND,
+        exposedHeaders: ['DPoP-Nonce', 'WWW-Authenticate'],
+      }),
+    )
     app.use(loggerMiddleware)
     app.use(compression())
 
