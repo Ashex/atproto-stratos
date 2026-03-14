@@ -49,6 +49,11 @@ const { Secp256k1Keypair } = require('@atproto/crypto')
 
 const main = async () => {
   console.log('Starting AppView API server...')
+  if (!process.env.DB_URL && process.env.DB_USERNAME && process.env.DB_HOST) {
+    const sslmode = process.env.DB_SSLMODE ?? 'require'
+    process.env.DB_URL =
+      `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_DBNAME}?sslmode=${sslmode}`
+  }
   const env = getEnv()
   const config = ServerConfig.readEnv()
   console.log('Config:', JSON.stringify({

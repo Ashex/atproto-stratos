@@ -138,6 +138,8 @@ export class AuthVerifier {
             aud,
           },
         }
+      } else if (isDpopToken(ctx.req)) {
+        return this.verifyDpopAuth(ctx)
       } else {
         return this.nullCreds()
       }
@@ -170,7 +172,7 @@ export class AuthVerifier {
   standardOrRole = async (
     ctx: ReqCtx,
   ): Promise<StandardOutput | RoleOutput> => {
-    if (isBearerToken(ctx.req)) {
+    if (isBearerToken(ctx.req) || isDpopToken(ctx.req)) {
       return this.standard(ctx)
     } else {
       return this.role(ctx)
@@ -180,7 +182,7 @@ export class AuthVerifier {
   optionalStandardOrRole = async (
     ctx: ReqCtx,
   ): Promise<StandardOutput | RoleOutput | NullOutput> => {
-    if (isBearerToken(ctx.req)) {
+    if (isBearerToken(ctx.req) || isDpopToken(ctx.req)) {
       return await this.standard(ctx)
     } else {
       const creds = this.parseRoleCreds(ctx.req)
@@ -196,6 +198,107 @@ export class AuthVerifier {
       } else {
         throw new AuthRequiredError()
       }
+    }
+  }
+
+  // Verify DPoP-bound OAuth access tokens sent directly from the client.
+  // The access token signature may not be verifiable (HS256 from PDS),
+  // so authentication relies on DPoP proof-of-possession binding.
+  verifyDpopAuth = async (reqCtx: ReqCtx): Promise<StandardOutput> => {
+    const accessToken = dpopTokenFromReq(reqCtx.req)
+    if (!accessToken) {
+      throw new AuthRequiredError('Missing DPoP token', 'AuthMissing')
+    }
+
+    const dpopProofStr = reqCtx.req.headers['dpop']
+    if (typeof dpopProofStr !== 'string' || !dpopProofStr) {
+      throw new AuthRequiredError('Missing DPoP proof', 'InvalidToken')
+    }
+
+    let tokenPayload: jose.JWTPayload
+    try {
+      tokenPayload = jose.decodeJwt(accessToken)
+    } catch {
+      throw new AuthRequiredError('Invalid access token', 'InvalidToken')
+    }
+
+    const did = tokenPayload.sub
+    if (typeof did !== 'string' || !did.startsWith('did:')) {
+      throw new AuthRequiredError('Invalid token subject', 'InvalidToken')
+    }
+
+    if (tokenPayload.exp && tokenPayload.exp * 1000 < Date.now()) {
+      throw new AuthRequiredError('Token has expired', 'ExpiredToken')
+    }
+
+    const cnf = tokenPayload.cnf as { jkt?: string } | undefined
+    if (!cnf?.jkt) {
+      throw new AuthRequiredError(
+        'Token missing DPoP key binding',
+        'InvalidToken',
+      )
+    }
+
+    try {
+      const dpopHeader = jose.decodeProtectedHeader(dpopProofStr)
+      if (dpopHeader.typ !== 'dpop+jwt') {
+        throw new Error('Invalid DPoP proof type')
+      }
+      if (!dpopHeader.jwk) {
+        throw new Error('DPoP proof missing JWK')
+      }
+
+      const publicKey = await jose.importJWK(dpopHeader.jwk)
+      const { payload: dpopPayload } = await jose.jwtVerify(
+        dpopProofStr,
+        publicKey,
+        { typ: 'dpop+jwt' },
+      )
+
+      if (dpopPayload.htm !== reqCtx.req.method) {
+        throw new Error('DPoP htm mismatch')
+      }
+
+      if (typeof dpopPayload.htu === 'string') {
+        const proofUrl = new URL(dpopPayload.htu)
+        const reqProto =
+          reqCtx.req.get('x-forwarded-proto')?.split(',')[0]?.trim() ||
+          reqCtx.req.protocol
+        const reqHost = reqCtx.req.get('host') || ''
+        const actualUrl = new URL(`${reqProto}://${reqHost}${reqCtx.req.path}`)
+        if (
+          proofUrl.hostname !== actualUrl.hostname ||
+          proofUrl.pathname !== actualUrl.pathname
+        ) {
+          throw new Error('DPoP htu mismatch')
+        }
+      }
+
+      if (typeof dpopPayload.ath === 'string') {
+        const athExpected = jose.base64url.encode(
+          crypto.createHash('sha256').update(accessToken).digest(),
+        )
+        if (dpopPayload.ath !== athExpected) {
+          throw new Error('DPoP ath mismatch')
+        }
+      }
+
+      const jkt = await jose.calculateJwkThumbprint(dpopHeader.jwk, 'sha256')
+      if (jkt !== cnf.jkt) {
+        throw new Error('DPoP key binding mismatch')
+      }
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'DPoP verification failed'
+      throw new AuthRequiredError(message, 'InvalidToken')
+    }
+
+    return {
+      credentials: {
+        type: 'standard',
+        iss: did,
+        aud: this.ownDid,
+      },
     }
   }
 
@@ -435,9 +538,14 @@ export class AuthVerifier {
 
 const BEARER = 'Bearer '
 const BASIC = 'Basic '
+const DPOP = 'DPoP '
 
 const isBearerToken = (req: express.Request): boolean => {
   return req.headers.authorization?.startsWith(BEARER) ?? false
+}
+
+const isDpopToken = (req: express.Request): boolean => {
+  return req.headers.authorization?.startsWith(DPOP) ?? false
 }
 
 const isBasicToken = (req: express.Request): boolean => {
@@ -448,6 +556,12 @@ const bearerTokenFromReq = (req: express.Request) => {
   const header = req.headers.authorization || ''
   if (!header.startsWith(BEARER)) return null
   return header.slice(BEARER.length).trim()
+}
+
+const dpopTokenFromReq = (req: express.Request) => {
+  const header = req.headers.authorization || ''
+  if (!header.startsWith(DPOP)) return null
+  return header.slice(DPOP.length).trim()
 }
 
 export const parseBasicAuth = (

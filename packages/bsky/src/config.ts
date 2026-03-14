@@ -333,7 +333,7 @@ export class ServerConfig {
 
     const stratosServiceUrl = process.env.STRATOS_SERVICE_URL || undefined
     const stratosServiceDid = process.env.STRATOS_SERVICE_DID || undefined
-    const stratosDbUrl = process.env.STRATOS_DB_URL || undefined
+    const stratosDbUrl = process.env.DB_URL || undefined
     const stratosSyncEnabled = process.env.STRATOS_SYNC_ENABLED === 'true'
 
     return new ServerConfig({
