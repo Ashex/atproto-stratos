@@ -93,22 +93,31 @@ export class StratosEnrollmentManager {
       headers: { authorization: `Bearer ${token}` },
     })
 
-    if (!res.ok) return null
+    if (!res.ok) {
+      console.log(`[stratos] enrollment fetch failed for ${did}: ${res.status} ${res.statusText}`)
+      return null
+    }
 
     const body = (await res.json()) as {
       did: string
       enrolled: boolean
       enrolledAt?: string
-      boundaries?: string[]
+      boundaries?: Array<string | { value: string }>
     }
 
     if (!body.enrolled) return null
+
+    const boundaries = (body.boundaries ?? []).map((b) =>
+      typeof b === 'string' ? b : b.value,
+    )
+
+    console.log(`[stratos] enrollment fetched for ${did}: ${boundaries.length} boundaries`, boundaries)
 
     return {
       did: body.did,
       serviceUrl: this.config.stratosServiceUrl,
       enrolledAt: body.enrolledAt ?? new Date().toISOString(),
-      boundaries: body.boundaries ?? [],
+      boundaries,
     }
   }
 

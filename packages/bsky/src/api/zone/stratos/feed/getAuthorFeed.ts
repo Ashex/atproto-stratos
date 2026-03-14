@@ -20,6 +20,7 @@ export default function (server: Server, ctx: AppContext) {
 
       const viewerBoundaries =
         await ctx.stratosEnrollmentManager!.getBoundaries(viewer)
+      console.log(`[stratos] getAuthorFeed: viewer=${viewer} actor=${actorDid} viewerBoundaries=`, viewerBoundaries)
       if (viewerBoundaries.length === 0) {
         return {
           encoding: 'application/json' as const,

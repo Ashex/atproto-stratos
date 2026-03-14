@@ -220,6 +220,12 @@ export class BskyAppView {
     let stratosDb: Database | undefined
 
     if (config.stratosDbUrl && config.stratosServiceUrl && config.stratosServiceDid) {
+      console.log('[stratos] Initializing Stratos integration', {
+        serviceUrl: config.stratosServiceUrl,
+        serviceDid: config.stratosServiceDid,
+        dbSchema: config.stratosDbSchema,
+        syncEnabled: config.stratosSyncEnabled,
+      })
       stratosDb = new Database({
         url: config.stratosDbUrl,
         schema: config.stratosDbSchema,
@@ -246,6 +252,12 @@ export class BskyAppView {
         )
         stratosEnrollmentManager.setActorSubscriber(stratosIndexer)
       }
+    } else {
+      console.log('[stratos] Stratos integration NOT initialized', {
+        hasDbUrl: !!config.stratosDbUrl,
+        hasServiceUrl: !!config.stratosServiceUrl,
+        hasServiceDid: !!config.stratosServiceDid,
+      })
     }
 
     const ctx = new AppContext({
