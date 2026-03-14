@@ -42,9 +42,10 @@ export class StratosEnrollmentManager {
     const cached = await this.store.getBoundaries(viewerDid)
     if (cached.length > 0) return cached
 
-    // Fallback: query Stratos service directly
+    // Fallback: query Stratos service directly and cache the result
     const enrollment = await this.fetchEnrollmentFromStratos(viewerDid)
     if (!enrollment) return []
+    await this.store.upsertEnrollment(enrollment)
     return enrollment.boundaries
   }
 
