@@ -12,6 +12,12 @@ export default function (server: Server, ctx: AppContext) {
         throw new InvalidRequestError('Stratos integration not configured')
       }
 
+      // Resolve handle to DID — params.actor can be a handle or DID
+      const [actorDid] = await ctx.hydrator.actor.getDids([params.actor])
+      if (!actorDid) {
+        throw new InvalidRequestError('Profile not found')
+      }
+
       const viewerBoundaries =
         await ctx.stratosEnrollmentManager!.getBoundaries(viewer)
       if (viewerBoundaries.length === 0) {
@@ -22,7 +28,7 @@ export default function (server: Server, ctx: AppContext) {
       }
 
       const result = await stratosStore.getAuthorFeed({
-        actorDid: params.actor,
+        actorDid,
         viewerBoundaries,
         boundary: params.boundary,
         limit: params.limit,
