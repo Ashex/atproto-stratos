@@ -1,12 +1,36 @@
-# Blacksky AppView
+# Northsky AppView
 
-This is [Blacksky's](https://blacksky.community) fork of the [AT Protocol reference implementation](https://github.com/bluesky-social/atproto) by Bluesky Social PBC. It powers the AppView at `api.blacksky.community`.
+This is [Blacksky's](https://blacksky.community) fork of the [AT Protocol reference implementation](https://github.com/bluesky-social/atproto) by Bluesky Social PBC. It powers the AppView at `api.blacksky.community` and provides first-class integration with [Stratos](../stratos/), a private permissioned data service for ATProtocol.
 
 We're publishing this for transparency and so other communities can benefit from the work. **This repository is not accepting contributions, issues, or PRs.** If you want the canonical atproto implementation, use [bluesky-social/atproto](https://github.com/bluesky-social/atproto).
 
 ## What's Different
 
-All changes are in `packages/bsky` (appview logic), `services/bsky` (runtime config), and one custom migration. Everything else is upstream.
+All changes are in `packages/bsky` (appview logic), `services/bsky` (runtime config), `lexicons/zone/stratos/` (Stratos lexicons), and `infra/` (CDK deployment). Everything else is upstream.
+
+### Stratos Integration
+
+The AppView indexes private, boundary-scoped records from a [Stratos](../stratos/) service and serves them through XRPC feed endpoints. This replaces the previous `community.blacksky.feed.*` system with a standards-based ATProtocol approach.
+
+For a full technical walkthrough, see [docs/stratos-integration.md](./docs/stratos-integration.md).
+
+**What it adds:**
+
+- **Real-time indexer** (`packages/bsky/src/stratos/indexer.ts`) — Connects to Stratos via per-actor WebSocket subscriptions, decodes CBOR-framed commit events, and writes records to PostgreSQL
+- **Enrollment manager** (`packages/bsky/src/stratos/enrollment-manager.ts`) — Discovers enrolled users from Stratos, fetches their boundaries, and subscribes new actors to the indexer
+- **Boundary-aware feed endpoints** — Three new `zone.stratos.feed.*` XRPC endpoints (getTimeline, getAuthorFeed, getPost) that filter records by the viewer's boundaries
+- **DPoP authentication** (`packages/bsky/src/auth-verifier.ts`) — Direct DPoP-bound OAuth token verification so webapp clients can authenticate without proxying through a PDS
+- **Custom lexicons** (`lexicons/zone/stratos/`) — Record types, boundary definitions, and feed query/procedure schemas
+- **Database schema** — Four new tables (`stratos_post`, `stratos_post_boundary`, `stratos_enrollment`, `stratos_sync_cursor`) via Kysely migration
+- **CDK infrastructure** (`infra/src/appview-stack.ts`) — AWS deployment stack for the AppView with RDS, ECS, and Stratos connectivity
+
+**What it removes:**
+
+- `community.blacksky.feed.*` lexicons and endpoints (replaced by `zone.stratos.feed.*`)
+- `community_post` table and migration
+- Membership database dependency (`BLACKSKY_MEMBERSHIP_DB_URL`)
+- Community post integration in `getPostThreadV2`
+- Protobuf service definitions for community routes
 
 ### Why Not the Built-in Firehose Consumer?
 
@@ -39,16 +63,6 @@ These are broadly useful to anyone self-hosting an AppView at scale.
 **JSON sanitization** (`packages/bsky/src/data-plane/server/routes/records.ts`)
 - Strips null bytes (`\u0000`) and control characters from stored records before JSON parsing. These are valid per RFC 8259 but rejected by Node.js `JSON.parse()`, causing silent `rowToRecord` parse failures in the dataplane that surface as missing posts.
 
-### Community Posts (Blacksky-specific)
-
-Infrastructure for private community posts that live on the AppView rather than individual PDSes. Specific to how Blacksky works, but could serve as a reference for other communities.
-
-- Custom lexicon namespace `community.blacksky.feed.*` with endpoints for submit, get, delete, timeline, and thread views
-- Separate `community_post` table (migration: `20260202T120000000Z-add-community-post.ts`)
-- Membership gating at the dataplane and API layer
-- Integration with `getPostThreadV2` for mixed standard/community post threads
-- Requires a separate membership database (`BLACKSKY_MEMBERSHIP_DB_URL`)
-
 ## Architecture
 
 ```
@@ -65,10 +79,12 @@ rsky-wintermute -----> PostgreSQL 17 <----- Palomar
                     bsky-dataplane (gRPC :2585) <--- Redis (optional)
                             |
                             v
-                    bsky-appview (HTTP :2584)
-                            |
-                            v
-                    Reverse proxy (Caddy/nginx)
+                    bsky-appview (HTTP :2584) <--- Stratos Service (WebSocket)
+                            |                       |
+                            v                       v
+                    Reverse proxy            stratos_post
+                    (Caddy/nginx)            stratos_enrollment
+                                             stratos_sync_cursor
 ```
 
 ### Component Overview
@@ -79,7 +95,8 @@ rsky-wintermute -----> PostgreSQL 17 <----- Palomar
 | **rsky-relay** | [blacksky-algorithms/rsky](https://github.com/blacksky-algorithms/rsky) | AT Protocol relay for receiving moderation labels from labeler services |
 | **rsky-video** | [blacksky-algorithms/rsky](https://github.com/blacksky-algorithms/rsky) | Video upload service: transcodes via Bunny Stream CDN, uploads blob refs to user PDSes |
 | **bsky-dataplane** | This repo (`services/bsky`) | gRPC data layer over PostgreSQL |
-| **bsky-appview** | This repo (`services/bsky`) | HTTP API server for `app.bsky.*` XRPC endpoints |
+| **bsky-appview** | This repo (`services/bsky`) | HTTP API server for `app.bsky.*` and `zone.stratos.*` XRPC endpoints |
+| **Stratos** | [stratos](../stratos/) | Private permissioned data service — stores boundary-scoped records, serves them via WebSocket subscription |
 | **Palomar** | [blacksky-algorithms/indigo](https://github.com/blacksky-algorithms/indigo) | Full-text search: indexes profiles and posts into OpenSearch with follower count boosting |
 | **palomar-sync** | [blacksky-algorithms/rsky](https://github.com/blacksky-algorithms/rsky) | Syncs follower counts and PageRank scores from PostgreSQL to OpenSearch |
 
@@ -125,16 +142,27 @@ Moderation labels come from labeler services (e.g., Bluesky's Ozone) via WebSock
 
 ### Database
 
-The `bsky` schema is created by the dataplane's migrations. On first run, the dataplane will apply all migrations automatically. The only Blacksky-specific migration is `20260202T120000000Z-add-community-post.ts` (community posts table). If you don't need community posts, you can remove it.
+The `bsky` schema is created by the dataplane's migrations. On first run, the dataplane will apply all migrations automatically. Stratos-specific tables are added by `20260312T120000000Z-add-stratos-tables.ts`:
+
+| Table | Purpose |
+|-------|---------|
+| `stratos_post` | Indexed Stratos posts with text, reply info, embeds, facets. `sortAt` is a stored generated column: `LEAST(createdAt, indexedAt)` |
+| `stratos_post_boundary` | Many-to-many: maps post URIs to boundary strings |
+| `stratos_enrollment` | Enrolled users with their Stratos service URL and cached boundaries |
+| `stratos_sync_cursor` | Per-actor WebSocket subscription cursor tracking |
 
 rsky-wintermute writes to this same schema. All its INSERT statements use `ON CONFLICT` so it's safe to run wintermute and the dataplane migrations in any order.
 
 ### Build
 
+The Docker images use Node.js 24 (Alpine). The build copies only the packages needed by `@atproto/bsky` to reduce image size and avoid pulling in the full monorepo.
+
 ```bash
 pnpm install
 pnpm build
 ```
+
+The `services/bsky/Dockerfile` also bundles the AWS RDS CA certificate for TLS connections to RDS PostgreSQL instances.
 
 ### Run the Dataplane
 
@@ -148,7 +176,6 @@ node services/bsky/dataplane.js
 | `DB_REPLICA_URL` | No | Read replica connection string |
 | `BSKY_DATAPLANE_PORT` | No | gRPC port (default 2585) |
 | `BSKY_REDIS_HOST` | No | Redis host:port for caching (currently recommended to leave disabled) |
-| `BLACKSKY_MEMBERSHIP_DB_URL` | No | Separate DB for community membership (Blacksky-specific) |
 
 ### Run the AppView
 
@@ -163,6 +190,13 @@ node services/bsky/api.js
 | `BSKY_DID` | Yes | The AppView's DID (e.g. `did:web:api.example.com`) |
 | `BSKY_MOD_SERVICE_DID` | Yes | Ozone moderation service DID |
 | `BSKY_ADMIN_PASSWORDS` | Yes | Comma-separated admin passwords for basic auth |
+| `STRATOS_SERVICE_URL` | No | Stratos service base URL (enables Stratos integration) |
+| `STRATOS_SERVICE_DID` | No | Stratos service DID (required with `STRATOS_SERVICE_URL`) |
+| `DB_URL` | No | PostgreSQL URL for Stratos tables (reuses the bsky database) |
+| `DB_SCHEMA` | No | PostgreSQL schema for Stratos tables (default: `bsky`) |
+| `STRATOS_SYNC_ENABLED` | No | Set to `true` to enable real-time WebSocket indexing from Stratos |
+
+When `STRATOS_SERVICE_URL`, `STRATOS_SERVICE_DID`, and `DB_URL` are all set, the AppView starts the Stratos enrollment manager, creates the `stratos_*` tables via migration, and registers the `zone.stratos.feed.*` endpoints. Setting `STRATOS_SYNC_ENABLED=true` additionally starts the real-time indexer that connects to Stratos via WebSocket.
 
 ## Operating at Scale
 
