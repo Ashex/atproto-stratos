@@ -215,6 +215,13 @@ export class StratosStore {
     return JSON.parse(enrollment.boundaries) as string[]
   }
 
+  async getAllEnrollments(): Promise<Array<{ did: string; serviceUrl: string }>> {
+    return this.db
+      .selectFrom('stratos_enrollment')
+      .select(['did', 'serviceUrl'])
+      .execute()
+  }
+
   async upsertEnrollment(enrollment: {
     did: string
     serviceUrl: string

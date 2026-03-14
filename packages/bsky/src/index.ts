@@ -244,6 +244,7 @@ export class BskyAppView {
             signingKey,
           },
         )
+        stratosEnrollmentManager.setActorSubscriber(stratosIndexer)
       }
     }
 

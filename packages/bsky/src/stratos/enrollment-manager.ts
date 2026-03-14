@@ -10,13 +10,22 @@ export interface EnrollmentManagerConfig {
   refreshIntervalMs: number
 }
 
+export interface ActorSubscriber {
+  addActor(did: string): Promise<void>
+}
+
 export class StratosEnrollmentManager {
   private refreshTimer: ReturnType<typeof setInterval> | null = null
+  private actorSubscriber: ActorSubscriber | null = null
 
   constructor(
     private store: StratosStore,
     private config: EnrollmentManagerConfig,
   ) {}
+
+  setActorSubscriber(subscriber: ActorSubscriber): void {
+    this.actorSubscriber = subscriber
+  }
 
   start(): void {
     if (this.config.refreshIntervalMs > 0) {
@@ -46,6 +55,7 @@ export class StratosEnrollmentManager {
     const enrollment = await this.fetchEnrollmentFromStratos(viewerDid)
     if (!enrollment) return []
     await this.store.upsertEnrollment(enrollment)
+    await this.actorSubscriber?.addActor(viewerDid)
     return enrollment.boundaries
   }
 
@@ -57,6 +67,7 @@ export class StratosEnrollmentManager {
     if (!fetched) return null
 
     await this.store.upsertEnrollment(fetched)
+    await this.actorSubscriber?.addActor(did)
     return this.store.getEnrollment(did)
   }
 
@@ -102,8 +113,16 @@ export class StratosEnrollmentManager {
   }
 
   private async refreshAll(): Promise<void> {
-    // Placeholder: iterate enrolled users and refresh their data
-    // In production, this would page through stratos_enrollment
-    // and call fetchEnrollmentFromStratos for each
+    const enrollments = await this.store.getAllEnrollments()
+    for (const enrollment of enrollments) {
+      try {
+        const fresh = await this.fetchEnrollmentFromStratos(enrollment.did)
+        if (fresh) {
+          await this.store.upsertEnrollment(fresh)
+        }
+      } catch {
+        // Skip individual failures; will retry on next cycle
+      }
+    }
   }
 }
