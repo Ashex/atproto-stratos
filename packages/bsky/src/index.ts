@@ -222,6 +222,7 @@ export class BskyAppView {
     if (config.stratosDbUrl && config.stratosServiceUrl && config.stratosServiceDid) {
       stratosDb = new Database({
         url: config.stratosDbUrl,
+        schema: config.stratosDbSchema,
         poolSize: 5,
       })
       stratosStore = new StratosStore(stratosDb.db)

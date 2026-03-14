@@ -112,6 +112,7 @@ export interface ServerConfigValues {
   stratosServiceUrl?: string
   stratosServiceDid?: string
   stratosDbUrl?: string
+  stratosDbSchema?: string
   stratosSyncEnabled?: boolean
 }
 
@@ -334,6 +335,7 @@ export class ServerConfig {
     const stratosServiceUrl = process.env.STRATOS_SERVICE_URL || undefined
     const stratosServiceDid = process.env.STRATOS_SERVICE_DID || undefined
     const stratosDbUrl = process.env.DB_URL || undefined
+    const stratosDbSchema = process.env.DB_SCHEMA || 'bsky'
     const stratosSyncEnabled = process.env.STRATOS_SYNC_ENABLED === 'true'
 
     return new ServerConfig({
@@ -406,6 +408,7 @@ export class ServerConfig {
       stratosServiceUrl,
       stratosServiceDid,
       stratosDbUrl,
+      stratosDbSchema,
       stratosSyncEnabled,
       ...noUndefinedVals(overrides ?? {}),
     })
@@ -690,6 +693,10 @@ export class ServerConfig {
 
   get stratosDbUrl() {
     return this.cfg.stratosDbUrl
+  }
+
+  get stratosDbSchema() {
+    return this.cfg.stratosDbSchema ?? 'bsky'
   }
 
   get stratosSyncEnabled() {
