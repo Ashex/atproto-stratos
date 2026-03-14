@@ -35,7 +35,6 @@ import { authWithApiKey as rolodexAuth, createRolodexClient } from './rolodex'
 import { createStashClient } from './stash'
 import { StratosStore } from './stratos/store'
 import { StratosEnrollmentManager } from './stratos/enrollment-manager'
-import { StratosIndexer } from './stratos/indexer'
 import { Views } from './views'
 import { VideoUriBuilder } from './views/util'
 
@@ -216,7 +215,6 @@ export class BskyAppView {
 
     let stratosStore: StratosStore | undefined
     let stratosEnrollmentManager: StratosEnrollmentManager | undefined
-    let stratosIndexer: StratosIndexer | undefined
     let stratosDb: Database | undefined
 
     if (config.stratosDbUrl && config.stratosServiceUrl && config.stratosServiceDid) {
@@ -224,7 +222,6 @@ export class BskyAppView {
         serviceUrl: config.stratosServiceUrl,
         serviceDid: config.stratosServiceDid,
         dbSchema: config.stratosDbSchema,
-        syncEnabled: config.stratosSyncEnabled,
       })
       stratosDb = new Database({
         url: config.stratosDbUrl,
@@ -236,19 +233,6 @@ export class BskyAppView {
         stratosServiceUrl: config.stratosServiceUrl,
         refreshIntervalMs: 5 * 60 * 1000,
       })
-      if (config.stratosSyncEnabled) {
-        stratosIndexer = new StratosIndexer(
-          stratosDb.db,
-          stratosStore,
-          {
-            stratosServiceUrl: config.stratosServiceUrl,
-            stratosServiceDid: config.stratosServiceDid,
-            appviewDid: config.serverDid,
-            signingKey,
-          },
-        )
-        stratosEnrollmentManager.setActorSubscriber(stratosIndexer)
-      }
     } else {
       console.log('[stratos] Stratos integration NOT initialized', {
         hasDbUrl: !!config.stratosDbUrl,
@@ -279,7 +263,6 @@ export class BskyAppView {
       kwsClient,
       stratosStore,
       stratosEnrollmentManager,
-      stratosIndexer,
     })
 
     let server = createServer({
@@ -317,9 +300,6 @@ export class BskyAppView {
     if (this.ctx.stratosEnrollmentManager) {
       this.ctx.stratosEnrollmentManager.start()
     }
-    if (this.ctx.stratosIndexer) {
-      await this.ctx.stratosIndexer.start()
-    }
     const server = this.app.listen(this.ctx.cfg.port)
     this.server = server
     server.keepAliveTimeout = 90000
@@ -331,9 +311,6 @@ export class BskyAppView {
   }
 
   async destroy(): Promise<void> {
-    if (this.ctx.stratosIndexer) {
-      await this.ctx.stratosIndexer.stop()
-    }
     if (this.ctx.stratosEnrollmentManager) {
       this.ctx.stratosEnrollmentManager.stop()
     }

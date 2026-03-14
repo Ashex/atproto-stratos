@@ -18,7 +18,6 @@ import { RolodexClient } from './rolodex'
 import { StashClient } from './stash'
 import { StratosStore } from './stratos/store'
 import { StratosEnrollmentManager } from './stratos/enrollment-manager'
-import { StratosIndexer } from './stratos/indexer'
 import {
   ParsedLabelers,
   defaultLabelerHeader,
@@ -49,7 +48,6 @@ export class AppContext {
       kwsClient: KwsClient | undefined
       stratosStore: StratosStore | undefined
       stratosEnrollmentManager: StratosEnrollmentManager | undefined
-      stratosIndexer: StratosIndexer | undefined
     },
   ) {}
 
@@ -139,10 +137,6 @@ export class AppContext {
 
   get stratosEnrollmentManager(): StratosEnrollmentManager | undefined {
     return this.opts.stratosEnrollmentManager
-  }
-
-  get stratosIndexer(): StratosIndexer | undefined {
-    return this.opts.stratosIndexer
   }
 
   reqLabelers(req: express.Request): ParsedLabelers {
