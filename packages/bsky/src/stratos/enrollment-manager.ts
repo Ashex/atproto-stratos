@@ -111,6 +111,7 @@ export class StratosEnrollmentManager {
         const fresh = await this.fetchEnrollmentFromStratos(enrollment.did)
         if (fresh) {
           await this.store.upsertEnrollment(fresh)
+          await this.actorSubscriber?.addActor(enrollment.did)
         }
       } catch {
         // Skip individual failures; will retry on next cycle

@@ -31,6 +31,8 @@ export default function (server: Server, ctx: AppContext) {
         cursor: params.cursor,
       })
 
+      console.log(`[stratos] getTimeline: viewer=${viewer} boundaries=${JSON.stringify(boundaries)} posts=${result.posts.length}`)
+
       const feed = result.posts.map((post) => ({
         post: {
           uri: post.uri,
