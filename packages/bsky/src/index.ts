@@ -234,9 +234,6 @@ export class BskyAppView {
       stratosStore = new StratosStore(stratosDb.db)
       stratosEnrollmentManager = new StratosEnrollmentManager(stratosStore, {
         stratosServiceUrl: config.stratosServiceUrl,
-        stratosServiceDid: config.stratosServiceDid,
-        appviewDid: config.serverDid,
-        signingKey,
         refreshIntervalMs: 5 * 60 * 1000,
       })
       if (config.stratosSyncEnabled) {

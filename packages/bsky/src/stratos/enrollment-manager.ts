@@ -1,12 +1,7 @@
-import { Keypair } from '@atproto/crypto'
-import { createStratosSyncToken } from './auth'
 import { StratosStore } from './store'
 
 export interface EnrollmentManagerConfig {
   stratosServiceUrl: string
-  stratosServiceDid: string
-  appviewDid: string
-  signingKey: Keypair
   refreshIntervalMs: number
 }
 
@@ -77,21 +72,12 @@ export class StratosEnrollmentManager {
     enrolledAt: string
     boundaries: string[]
   } | null> {
-    const token = await createStratosSyncToken(
-      this.config.signingKey,
-      this.config.appviewDid,
-      this.config.stratosServiceDid,
-      'zone.stratos.enrollment.status',
-    )
-
-    const url = new URL(
-      `/xrpc/zone.stratos.enrollment.status?did=${encodeURIComponent(did)}`,
+    const enrollmentUrl = new URL(
+      `/xrpc/zone.stratos.identity.resolveEnrollments?did=${encodeURIComponent(did)}`,
       this.config.stratosServiceUrl,
     )
 
-    const res = await fetch(url.toString(), {
-      headers: { authorization: `Bearer ${token}` },
-    })
+    const res = await fetch(enrollmentUrl.toString())
 
     if (!res.ok) {
       console.log(`[stratos] enrollment fetch failed for ${did}: ${res.status} ${res.statusText}`)
@@ -101,22 +87,19 @@ export class StratosEnrollmentManager {
     const body = (await res.json()) as {
       did: string
       enrolled: boolean
-      enrolledAt?: string
-      boundaries?: Array<string | { value: string }>
+      boundaries?: string[]
     }
 
     if (!body.enrolled) return null
 
-    const boundaries = (body.boundaries ?? []).map((b) =>
-      typeof b === 'string' ? b : b.value,
-    )
+    const boundaries = body.boundaries ?? []
 
     console.log(`[stratos] enrollment fetched for ${did}: ${boundaries.length} boundaries`, boundaries)
 
     return {
       did: body.did,
       serviceUrl: this.config.stratosServiceUrl,
-      enrolledAt: body.enrolledAt ?? new Date().toISOString(),
+      enrolledAt: new Date().toISOString(),
       boundaries,
     }
   }
