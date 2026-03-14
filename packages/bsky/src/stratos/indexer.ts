@@ -57,7 +57,7 @@ export class StratosIndexer {
 
   async start(): Promise<void> {
     this.running = true
-    logger.info('starting stratos indexer')
+    console.log('[stratos] starting stratos indexer')
 
     this.connectServiceSubscription()
 
@@ -70,7 +70,7 @@ export class StratosIndexer {
       void this.subscribeActor(enrollment.did)
     }
 
-    logger.info({ count: enrollments.length }, 'subscribed to enrolled actors')
+    console.log(`[stratos] subscribed to ${enrollments.length} enrolled actors`)
   }
 
   async stop(): Promise<void> {
@@ -233,7 +233,7 @@ export class StratosIndexer {
     })
 
     ws.addEventListener('open', () => {
-      logger.debug({ did }, 'actor sync stream connected')
+      console.log(`[stratos] actor sync stream connected: ${did} cursor=${cursor}`)
     })
 
     ws.addEventListener('close', () => {
@@ -307,9 +307,11 @@ export class StratosIndexer {
             op.record,
             commit.time,
           )
+          console.log(`[stratos] indexed record: uri=${uri} cid=${op.cid} seq=${commit.seq}`)
         }
       } else if (op.action === 'delete') {
         await deleteStratosRecord(this.db, uri)
+        console.log(`[stratos] deleted record: uri=${uri} seq=${commit.seq}`)
       }
     }
 
