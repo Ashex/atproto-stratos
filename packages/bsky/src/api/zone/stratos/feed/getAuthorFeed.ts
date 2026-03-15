@@ -1,6 +1,41 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../../../../context'
 import { Server } from '../../../../lexicon'
+import { StratosPostRow } from '../../../../stratos/store'
+
+function buildBoundaryField(boundaries: string[] | undefined) {
+  if (!boundaries || boundaries.length === 0) return undefined
+  return { values: boundaries.map((b) => ({ value: b })) }
+}
+
+function buildPostRecord(post: StratosPostRow, boundaries?: string[]) {
+  return {
+    $type: 'zone.stratos.feed.post',
+    text: post.text,
+    createdAt: post.createdAt,
+    ...(post.facets ? { facets: JSON.parse(post.facets) } : {}),
+    ...(post.embed ? { embed: JSON.parse(post.embed) } : {}),
+    ...(post.langs ? { langs: post.langs.split(',') } : {}),
+    ...(post.tags ? { tags: post.tags.split(',') } : {}),
+    ...(boundaries?.length
+      ? { boundary: buildBoundaryField(boundaries) }
+      : {}),
+    ...(post.replyParent && post.replyRoot
+      ? {
+          reply: {
+            parent: {
+              uri: post.replyParent,
+              cid: post.replyParentCid ?? '',
+            },
+            root: {
+              uri: post.replyRoot,
+              cid: post.replyRootCid ?? '',
+            },
+          },
+        }
+      : {}),
+  }
+}
 
 export default function (server: Server, ctx: AppContext) {
   server.zone.stratos.feed.getAuthorFeed({
@@ -12,15 +47,19 @@ export default function (server: Server, ctx: AppContext) {
         throw new InvalidRequestError('Stratos integration not configured')
       }
 
-      // Resolve handle to DID — params.actor can be a handle or DID
-      const [actorDid] = await ctx.hydrator.actor.getDids([params.actor])
-      if (!actorDid) {
-        throw new InvalidRequestError('Profile not found')
+      let actorDid: string
+      if (params.actor.startsWith('did:')) {
+        actorDid = params.actor
+      } else {
+        const [resolved] = await ctx.hydrator.actor.getDids([params.actor])
+        if (!resolved) {
+          throw new InvalidRequestError('Profile not found')
+        }
+        actorDid = resolved
       }
 
       const viewerBoundaries =
         await ctx.stratosEnrollmentManager!.getBoundaries(viewer)
-      console.log(`[stratos] getAuthorFeed: viewer=${viewer} actor=${actorDid} viewerBoundaries=`, viewerBoundaries)
       if (viewerBoundaries.length === 0) {
         return {
           encoding: 'application/json' as const,
@@ -36,31 +75,50 @@ export default function (server: Server, ctx: AppContext) {
         cursor: params.cursor,
       })
 
+      const uris = result.posts.map((p) => p.uri)
+      const dids = [...new Set(result.posts.map((p) => p.creator))]
+      const [boundaryMap, handleMap] = await Promise.all([
+        stratosStore.getBoundariesForPosts(uris),
+        resolveHandles(ctx, dids),
+      ])
+
       const feed = result.posts.map((post) => ({
         post: {
           uri: post.uri,
           cid: post.cid,
-          author: { did: post.creator, handle: post.creator },
-          record: {
-            $type: 'zone.stratos.feed.post',
-            text: post.text,
-            createdAt: post.createdAt,
-            ...(post.facets ? { facets: JSON.parse(post.facets) } : {}),
-            ...(post.embed ? { embed: JSON.parse(post.embed) } : {}),
-            ...(post.langs ? { langs: post.langs.split(',') } : {}),
-            ...(post.tags ? { tags: post.tags.split(',') } : {}),
+          author: {
+            did: post.creator,
+            handle: handleMap.get(post.creator) ?? post.creator,
           },
+          record: buildPostRecord(post, boundaryMap.get(post.uri)),
           indexedAt: post.indexedAt,
         },
       }))
 
       return {
         encoding: 'application/json' as const,
-        body: {
-          feed,
-          cursor: result.cursor,
-        },
+        body: { feed, cursor: result.cursor },
       }
     },
   })
+}
+
+async function resolveHandles(
+  ctx: AppContext,
+  dids: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  if (dids.length === 0) return map
+
+  try {
+    const actors = await ctx.hydrator.actor.getActors(dids, {})
+    for (const [did, actor] of actors) {
+      if (actor?.handle) {
+        map.set(did, actor.handle)
+      }
+    }
+  } catch {
+    // Best-effort: fall back to DID
+  }
+  return map
 }

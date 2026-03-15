@@ -1,6 +1,41 @@
 import { InvalidRequestError } from '@atproto/xrpc-server'
 import { AppContext } from '../../../../context'
 import { Server } from '../../../../lexicon'
+import { StratosPostRow } from '../../../../stratos/store'
+
+function buildBoundaryField(boundaries: string[] | undefined) {
+  if (!boundaries || boundaries.length === 0) return undefined
+  return { values: boundaries.map((b) => ({ value: b })) }
+}
+
+function buildPostRecord(post: StratosPostRow, boundaries?: string[]) {
+  return {
+    $type: 'zone.stratos.feed.post',
+    text: post.text,
+    createdAt: post.createdAt,
+    ...(post.facets ? { facets: JSON.parse(post.facets) } : {}),
+    ...(post.embed ? { embed: JSON.parse(post.embed) } : {}),
+    ...(post.langs ? { langs: post.langs.split(',') } : {}),
+    ...(post.tags ? { tags: post.tags.split(',') } : {}),
+    ...(boundaries?.length
+      ? { boundary: buildBoundaryField(boundaries) }
+      : {}),
+    ...(post.replyParent && post.replyRoot
+      ? {
+          reply: {
+            parent: {
+              uri: post.replyParent,
+              cid: post.replyParentCid ?? '',
+            },
+            root: {
+              uri: post.replyRoot,
+              cid: post.replyRootCid ?? '',
+            },
+          },
+        }
+      : {}),
+  }
+}
 
 export default function (server: Server, ctx: AppContext) {
   server.zone.stratos.feed.getPost({
@@ -20,7 +55,6 @@ export default function (server: Server, ctx: AppContext) {
       const viewerBoundaries =
         await ctx.stratosEnrollmentManager!.getBoundaries(viewer)
 
-      // Boundary check: viewer must share at least one boundary with the post
       if (post.boundaries.length > 0) {
         const hasAccess = post.boundaries.some((b) =>
           viewerBoundaries.includes(b),
@@ -33,6 +67,8 @@ export default function (server: Server, ctx: AppContext) {
         }
       }
 
+      const handleMap = await resolveHandles(ctx, [post.creator])
+
       return {
         encoding: 'application/json' as const,
         body: {
@@ -40,16 +76,11 @@ export default function (server: Server, ctx: AppContext) {
             post: {
               uri: post.uri,
               cid: post.cid,
-              author: { did: post.creator, handle: post.creator },
-              record: {
-                $type: 'zone.stratos.feed.post',
-                text: post.text,
-                createdAt: post.createdAt,
-                ...(post.facets ? { facets: JSON.parse(post.facets) } : {}),
-                ...(post.embed ? { embed: JSON.parse(post.embed) } : {}),
-                ...(post.langs ? { langs: post.langs.split(',') } : {}),
-                ...(post.tags ? { tags: post.tags.split(',') } : {}),
+              author: {
+                did: post.creator,
+                handle: handleMap.get(post.creator) ?? post.creator,
               },
+              record: buildPostRecord(post, post.boundaries),
               indexedAt: post.indexedAt,
             },
           },
@@ -57,4 +88,24 @@ export default function (server: Server, ctx: AppContext) {
       }
     },
   })
+}
+
+async function resolveHandles(
+  ctx: AppContext,
+  dids: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  if (dids.length === 0) return map
+
+  try {
+    const actors = await ctx.hydrator.actor.getActors(dids, {})
+    for (const [did, actor] of actors) {
+      if (actor?.handle) {
+        map.set(did, actor.handle)
+      }
+    }
+  } catch {
+    // Best-effort: fall back to DID
+  }
+  return map
 }

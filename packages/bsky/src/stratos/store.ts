@@ -192,6 +192,29 @@ export class StratosStore {
     return rows.map((r) => r.boundary)
   }
 
+  async getBoundariesForPosts(
+    uris: string[],
+  ): Promise<Map<string, string[]>> {
+    const result = new Map<string, string[]>()
+    if (uris.length === 0) return result
+
+    const rows = await this.db
+      .selectFrom('stratos_post_boundary')
+      .select(['uri', 'boundary'])
+      .where('uri', 'in', uris)
+      .execute()
+
+    for (const row of rows) {
+      const existing = result.get(row.uri)
+      if (existing) {
+        existing.push(row.boundary)
+      } else {
+        result.set(row.uri, [row.boundary])
+      }
+    }
+    return result
+  }
+
   async getEnrollment(did: string) {
     return this.db
       .selectFrom('stratos_enrollment')
