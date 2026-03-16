@@ -226,7 +226,7 @@ export class BskyAppView {
       stratosDb = new Database({
         url: config.stratosDbUrl,
         schema: config.stratosDbSchema,
-        poolSize: 5,
+        poolSize: config.stratosDbPoolSize,
       })
       stratosStore = new StratosStore(stratosDb.db)
       stratosEnrollmentManager = new StratosEnrollmentManager(stratosStore, {
