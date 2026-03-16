@@ -75,37 +75,19 @@ export class StratosStore {
 
     let query = this.db
       .selectFrom('stratos_post')
-      .innerJoin(
-        'stratos_post_boundary',
-        'stratos_post.uri',
-        'stratos_post_boundary.uri',
+      .selectAll()
+      .whereExists((qb) =>
+        qb
+          .selectFrom('stratos_post_boundary')
+          .select(sql`1`.as('one'))
+          .whereRef('stratos_post_boundary.uri', '=', 'stratos_post.uri')
+          .where('stratos_post_boundary.boundary', 'in', viewerBoundaries),
       )
-      .selectAll('stratos_post')
-      .where('stratos_post_boundary.boundary', 'in', viewerBoundaries)
-      .groupBy([
-        'stratos_post.uri',
-        'stratos_post.cid',
-        'stratos_post.rkey',
-        'stratos_post.creator',
-        'stratos_post.text',
-        'stratos_post.replyRoot',
-        'stratos_post.replyRootCid',
-        'stratos_post.replyParent',
-        'stratos_post.replyParentCid',
-        'stratos_post.embed',
-        'stratos_post.facets',
-        'stratos_post.langs',
-        'stratos_post.labels',
-        'stratos_post.tags',
-        'stratos_post.createdAt',
-        'stratos_post.indexedAt',
-        'stratos_post.sortAt',
-      ])
-      .orderBy('stratos_post.sortAt', 'desc')
+      .orderBy('sortAt', 'desc')
       .limit(limit + 1)
 
     if (cursor) {
-      query = query.where('stratos_post.sortAt', '<', cursor)
+      query = query.where('sortAt', '<', cursor)
     }
 
     const rows = await query.execute()
@@ -129,49 +111,29 @@ export class StratosStore {
       return { posts: [] }
     }
 
+    const boundariesToCheck = boundary
+      ? [boundary]
+      : viewerBoundaries
+
     let query = this.db
       .selectFrom('stratos_post')
-      .innerJoin(
-        'stratos_post_boundary',
-        'stratos_post.uri',
-        'stratos_post_boundary.uri',
+      .selectAll()
+      .where('creator', '=', actorDid)
+      .whereExists((qb) =>
+        qb
+          .selectFrom('stratos_post_boundary')
+          .select(sql`1`.as('one'))
+          .whereRef('stratos_post_boundary.uri', '=', 'stratos_post.uri')
+          .where('stratos_post_boundary.boundary', 'in', boundariesToCheck),
       )
-      .selectAll('stratos_post')
-      .where('stratos_post.creator', '=', actorDid)
-      .where('stratos_post_boundary.boundary', 'in', viewerBoundaries)
-
-    if (boundary) {
-      query = query.where('stratos_post_boundary.boundary', '=', boundary)
-    }
-
-    let finalQuery = query
-      .groupBy([
-        'stratos_post.uri',
-        'stratos_post.cid',
-        'stratos_post.rkey',
-        'stratos_post.creator',
-        'stratos_post.text',
-        'stratos_post.replyRoot',
-        'stratos_post.replyRootCid',
-        'stratos_post.replyParent',
-        'stratos_post.replyParentCid',
-        'stratos_post.embed',
-        'stratos_post.facets',
-        'stratos_post.langs',
-        'stratos_post.labels',
-        'stratos_post.tags',
-        'stratos_post.createdAt',
-        'stratos_post.indexedAt',
-        'stratos_post.sortAt',
-      ])
-      .orderBy('stratos_post.sortAt', 'desc')
+      .orderBy('sortAt', 'desc')
       .limit(limit + 1)
 
     if (cursor) {
-      finalQuery = finalQuery.where('stratos_post.sortAt', '<', cursor)
+      query = query.where('sortAt', '<', cursor)
     }
 
-    const rows = await finalQuery.execute()
+    const rows = await query.execute()
 
     const hasMore = rows.length > limit
     const posts = hasMore ? rows.slice(0, limit) : rows
