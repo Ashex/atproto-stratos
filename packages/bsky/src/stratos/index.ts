@@ -8,3 +8,4 @@ export type {
 export { StratosEnrollmentManager } from './enrollment-manager'
 export type { EnrollmentManagerConfig } from './enrollment-manager'
 export { createStratosSyncToken } from './auth'
+export { indexStratosRecord, deleteStratosRecord } from './record-indexer'
