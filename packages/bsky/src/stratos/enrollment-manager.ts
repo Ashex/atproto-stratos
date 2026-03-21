@@ -12,6 +12,8 @@ export interface ActorSubscriber {
 export class StratosEnrollmentManager {
   private refreshTimer: ReturnType<typeof setInterval> | null = null
   private actorSubscriber: ActorSubscriber | null = null
+  private boundaryCache = new Map<string, { boundaries: string[]; ts: number }>()
+  private static readonly BOUNDARY_CACHE_TTL_MS = 30_000
 
   constructor(
     private store: StratosStore,
@@ -43,14 +45,24 @@ export class StratosEnrollmentManager {
   }
 
   async getBoundaries(viewerDid: string): Promise<string[]> {
+    const now = Date.now()
+    const memoryCached = this.boundaryCache.get(viewerDid)
+    if (memoryCached && now - memoryCached.ts < StratosEnrollmentManager.BOUNDARY_CACHE_TTL_MS) {
+      return memoryCached.boundaries
+    }
+
     const cached = await this.store.getBoundaries(viewerDid)
-    if (cached.length > 0) return cached
+    if (cached.length > 0) {
+      this.boundaryCache.set(viewerDid, { boundaries: cached, ts: now })
+      return cached
+    }
 
     // Fallback: query Stratos service directly and cache the result
     const enrollment = await this.fetchEnrollmentFromStratos(viewerDid)
     if (!enrollment) return []
     await this.store.upsertEnrollment(enrollment)
     await this.actorSubscriber?.addActor(viewerDid)
+    this.boundaryCache.set(viewerDid, { boundaries: enrollment.boundaries, ts: now })
     return enrollment.boundaries
   }
 
