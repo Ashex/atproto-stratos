@@ -67,10 +67,14 @@ export default function (server: Server, ctx: AppContext) {
         }
       }
 
+      const boundaries = params.boundary
+        ? viewerBoundaries.filter((b) => b === params.boundary)
+        : viewerBoundaries
+
       const result = await stratosStore.getAuthorFeed({
         actorDid,
-        viewerBoundaries,
-        boundary: params.boundary,
+        viewerBoundaries: boundaries,
+        boundary: undefined,
         limit: params.limit,
         cursor: params.cursor,
       })
@@ -90,7 +94,10 @@ export default function (server: Server, ctx: AppContext) {
             did: post.creator,
             handle: handleMap.get(post.creator) ?? post.creator,
           },
-          record: buildPostRecord(post, boundaryMap.get(post.uri)),
+          record: buildPostRecord(
+            post,
+            boundaryMap.get(post.uri)?.filter((b) => viewerBoundaries.includes(b)),
+          ),
           indexedAt: post.indexedAt,
         },
       }))

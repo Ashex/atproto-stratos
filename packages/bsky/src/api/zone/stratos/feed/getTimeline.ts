@@ -81,7 +81,10 @@ export default function (server: Server, ctx: AppContext) {
             did: post.creator,
             handle: handleMap.get(post.creator) ?? post.creator,
           },
-          record: buildPostRecord(post, boundaryMap.get(post.uri)),
+          record: buildPostRecord(
+            post,
+            boundaryMap.get(post.uri)?.filter((b) => viewerBoundaries.includes(b)),
+          ),
           indexedAt: post.indexedAt,
         },
       }))
