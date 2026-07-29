@@ -108,6 +108,13 @@ export interface ServerConfigValues {
   kws?: KwsConfig
   debugFieldAllowedDids: Set<string>
   draftsLimit: number
+  // stratos
+  stratosServiceUrl?: string
+  stratosServiceDid?: string
+  stratosDbUrl?: string
+  stratosDbSchema?: string
+  stratosDbPoolSize?: number
+  stratosSyncEnabled?: boolean
 }
 
 export class ServerConfig {
@@ -326,6 +333,15 @@ export class ServerConfig {
       ? parseInt(process.env.BSKY_DRAFTS_LIMIT || '', 10)
       : 500
 
+    const stratosServiceUrl = process.env.STRATOS_SERVICE_URL || undefined
+    const stratosServiceDid = process.env.STRATOS_SERVICE_DID || undefined
+    const stratosDbUrl = process.env.DB_URL || undefined
+    const stratosDbSchema = process.env.DB_SCHEMA || 'bsky'
+    const stratosDbPoolSize = process.env.STRATOS_DB_POOL_SIZE
+      ? parseInt(process.env.STRATOS_DB_POOL_SIZE, 10)
+      : undefined
+    const stratosSyncEnabled = process.env.STRATOS_SYNC_ENABLED === 'true'
+
     return new ServerConfig({
       version,
       debugMode,
@@ -393,6 +409,12 @@ export class ServerConfig {
       kws,
       debugFieldAllowedDids,
       draftsLimit,
+      stratosServiceUrl,
+      stratosServiceDid,
+      stratosDbUrl,
+      stratosDbSchema,
+      stratosDbPoolSize,
+      stratosSyncEnabled,
       ...noUndefinedVals(overrides ?? {}),
     })
   }
@@ -664,6 +686,30 @@ export class ServerConfig {
 
   get draftsLimit() {
     return this.cfg.draftsLimit
+  }
+
+  get stratosServiceUrl() {
+    return this.cfg.stratosServiceUrl
+  }
+
+  get stratosServiceDid() {
+    return this.cfg.stratosServiceDid
+  }
+
+  get stratosDbUrl() {
+    return this.cfg.stratosDbUrl
+  }
+
+  get stratosDbSchema() {
+    return this.cfg.stratosDbSchema ?? 'bsky'
+  }
+
+  get stratosDbPoolSize() {
+    return this.cfg.stratosDbPoolSize ?? 30
+  }
+
+  get stratosSyncEnabled() {
+    return this.cfg.stratosSyncEnabled ?? false
   }
 }
 

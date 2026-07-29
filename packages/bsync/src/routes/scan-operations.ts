@@ -59,7 +59,7 @@ export default (ctx: AppContext): Partial<ServiceImpl<typeof Service>> => ({
         namespace: op.namespace,
         key: op.key,
         method: op.method,
-        payload: op.payload,
+        payload: op.payload as Uint8Array<ArrayBuffer>,
       })),
       cursor: lastOp.id.toString(),
     })

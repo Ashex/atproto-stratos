@@ -16,6 +16,8 @@ import { KwsClient } from './kws'
 import { httpLogger as log } from './logger'
 import { RolodexClient } from './rolodex'
 import { StashClient } from './stash'
+import { StratosStore } from './stratos/store'
+import { StratosEnrollmentManager } from './stratos/enrollment-manager'
 import {
   ParsedLabelers,
   defaultLabelerHeader,
@@ -44,6 +46,8 @@ export class AppContext {
       featureGates: FeatureGates
       blobDispatcher: Dispatcher
       kwsClient: KwsClient | undefined
+      stratosStore: StratosStore | undefined
+      stratosEnrollmentManager: StratosEnrollmentManager | undefined
     },
   ) {}
 
@@ -125,6 +129,14 @@ export class AppContext {
 
   get kwsClient(): KwsClient | undefined {
     return this.opts.kwsClient
+  }
+
+  get stratosStore(): StratosStore | undefined {
+    return this.opts.stratosStore
+  }
+
+  get stratosEnrollmentManager(): StratosEnrollmentManager | undefined {
+    return this.opts.stratosEnrollmentManager
   }
 
   reqLabelers(req: express.Request): ParsedLabelers {

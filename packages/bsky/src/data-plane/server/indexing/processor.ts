@@ -248,7 +248,9 @@ export class RecordProcessor<T, S> {
     for (const chunk of chunkArray(notifs, 500)) {
       runOnCommit.push(async (db) => {
         const filtered = await this.filterNotifsForThreadMutes(chunk)
-        await db.db.insertInto('notification').values(filtered).execute()
+        if (filtered.length > 0) {
+          await db.db.insertInto('notification').values(filtered).execute()
+        }
       })
     }
     // Need to ensure notif deletion always happens before creation, otherwise delete may clobber in a race.

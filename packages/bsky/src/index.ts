@@ -22,6 +22,7 @@ import {
   EtcdHostList,
   createDataPlaneClient,
 } from './data-plane/client'
+import { Database } from './data-plane/server/db'
 import * as error from './error'
 import { FeatureGates } from './feature-gates'
 import { Hydrator } from './hydration/hydrator'
@@ -32,6 +33,8 @@ import { createServer } from './lexicon'
 import { loggerMiddleware } from './logger'
 import { authWithApiKey as rolodexAuth, createRolodexClient } from './rolodex'
 import { createStashClient } from './stash'
+import { StratosStore } from './stratos/store'
+import { StratosEnrollmentManager } from './stratos/enrollment-manager'
 import { Views } from './views'
 import { VideoUriBuilder } from './views/util'
 
@@ -48,10 +51,12 @@ export class BskyAppView {
   public app: express.Application
   public server?: http.Server
   private terminator?: HttpTerminator
+  private stratosDb?: Database
 
-  constructor(opts: { ctx: AppContext; app: express.Application }) {
+  constructor(opts: { ctx: AppContext; app: express.Application; stratosDb?: Database }) {
     this.ctx = opts.ctx
     this.app = opts.app
+    this.stratosDb = opts.stratosDb
   }
 
   static create(opts: {
@@ -73,7 +78,14 @@ export class BskyAppView {
       }
       return result
     })
-    app.use(cors({ maxAge: DAY / SECOND }))
+    app.use(
+      cors({
+        origin: true,
+        credentials: true,
+        maxAge: DAY / SECOND,
+        exposedHeaders: ['DPoP-Nonce', 'WWW-Authenticate'],
+      }),
+    )
     app.use(loggerMiddleware)
     app.use(compression())
 
@@ -201,6 +213,34 @@ export class BskyAppView {
 
     const blobDispatcher = createBlobDispatcher(config)
 
+    let stratosStore: StratosStore | undefined
+    let stratosEnrollmentManager: StratosEnrollmentManager | undefined
+    let stratosDb: Database | undefined
+
+    if (config.stratosDbUrl && config.stratosServiceUrl && config.stratosServiceDid) {
+      console.log('[stratos] Initializing Stratos integration', {
+        serviceUrl: config.stratosServiceUrl,
+        serviceDid: config.stratosServiceDid,
+        dbSchema: config.stratosDbSchema,
+      })
+      stratosDb = new Database({
+        url: config.stratosDbUrl,
+        schema: config.stratosDbSchema,
+        poolSize: config.stratosDbPoolSize,
+      })
+      stratosStore = new StratosStore(stratosDb.db)
+      stratosEnrollmentManager = new StratosEnrollmentManager(stratosStore, {
+        stratosServiceUrl: config.stratosServiceUrl,
+        refreshIntervalMs: 5 * 60 * 1000,
+      })
+    } else {
+      console.log('[stratos] Stratos integration NOT initialized', {
+        hasDbUrl: !!config.stratosDbUrl,
+        hasServiceUrl: !!config.stratosServiceUrl,
+        hasServiceDid: !!config.stratosServiceDid,
+      })
+    }
+
     const ctx = new AppContext({
       cfg: config,
       etcd,
@@ -221,6 +261,8 @@ export class BskyAppView {
       featureGates,
       blobDispatcher,
       kwsClient,
+      stratosStore,
+      stratosEnrollmentManager,
     })
 
     let server = createServer({
@@ -247,7 +289,7 @@ export class BskyAppView {
     app.use(error.handler)
     app.use('/external', external.createRouter(ctx))
 
-    return new BskyAppView({ ctx, app })
+    return new BskyAppView({ ctx, app, stratosDb })
   }
 
   async start(): Promise<http.Server> {
@@ -255,6 +297,9 @@ export class BskyAppView {
       await this.ctx.dataplaneHostList.connect()
     }
     await this.ctx.featureGates.start()
+    if (this.ctx.stratosEnrollmentManager) {
+      this.ctx.stratosEnrollmentManager.start()
+    }
     const server = this.app.listen(this.ctx.cfg.port)
     this.server = server
     server.keepAliveTimeout = 90000
@@ -266,9 +311,15 @@ export class BskyAppView {
   }
 
   async destroy(): Promise<void> {
+    if (this.ctx.stratosEnrollmentManager) {
+      this.ctx.stratosEnrollmentManager.stop()
+    }
     this.ctx.featureGates.destroy()
     await this.terminator?.terminate()
     await this.ctx.etcd?.close()
+    if (this.stratosDb) {
+      await this.stratosDb.close()
+    }
   }
 }
 

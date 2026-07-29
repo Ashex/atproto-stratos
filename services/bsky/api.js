@@ -48,15 +48,37 @@ const { BskyAppView, ServerConfig } = require('@atproto/bsky')
 const { Secp256k1Keypair } = require('@atproto/crypto')
 
 const main = async () => {
+  console.log('Starting AppView API server...')
+  if (!process.env.DB_URL && process.env.DB_USERNAME && process.env.DB_HOST) {
+    const sslmode = process.env.DB_SSLMODE ?? 'require'
+    process.env.DB_URL =
+      `postgresql://${process.env.DB_USERNAME}:${process.env.DB_PASSWORD}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_DBNAME}?sslmode=${sslmode}`
+  }
   const env = getEnv()
   const config = ServerConfig.readEnv()
+  console.log('Config:', JSON.stringify({
+    port: config.port,
+    serverDid: config.serverDid,
+    publicUrl: config.publicUrl,
+    dataplaneUrls: config.dataplaneUrls,
+    bsyncUrl: config.bsyncUrl,
+    version: config.version,
+    stratosServiceUrl: config.stratosServiceUrl,
+    stratosSyncEnabled: config.stratosSyncEnabled,
+  }))
   assert(env.serviceSigningKey, 'must set BSKY_SERVICE_SIGNING_KEY')
   const signingKey = await Secp256k1Keypair.import(env.serviceSigningKey)
+  console.log('Signing key imported')
   const bsky = BskyAppView.create({ config, signingKey })
-  await bsky.start()
+  console.log('AppView created, starting server...')
+  const server = await bsky.start()
+  const addr = server.address()
+  console.log('AppView API server listening on port', addr?.port ?? config.port)
   // Graceful shutdown (see also https://aws.amazon.com/blogs/containers/graceful-shutdowns-with-ecs/)
   const shutdown = async () => {
+    console.log('Received shutdown signal, destroying AppView...')
     await bsky.destroy()
+    console.log('AppView destroyed')
   }
   process.on('SIGTERM', shutdown)
   process.on('disconnect', shutdown) // when clustering
@@ -114,5 +136,8 @@ if (workerCount) {
     main()
   }
 } else {
-  main() // non-clustering
+  main().catch((err) => {
+    console.error('AppView API server failed to start:', err)
+    process.exit(1)
+  })
 }

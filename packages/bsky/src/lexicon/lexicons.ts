@@ -15390,318 +15390,143 @@ export const schemaDict = {
       },
     },
   },
-  CommunityBlackskyFeedDeletePost: {
+} as const satisfies Record<string, LexiconDoc>
+
+export const stratosSchemaDict = {
+  ZoneStratosDefs: {
     lexicon: 1,
-    id: 'community.blacksky.feed.deletePost',
+    id: 'zone.stratos.defs',
     defs: {
-      main: {
-        type: 'procedure',
-        description:
-          'Delete a community post from the Blacksky appview. Only the post creator can delete their own posts.',
-        input: {
-          encoding: 'application/json',
-          schema: {
-            type: 'object',
-            required: ['uri'],
-            properties: {
-              uri: {
-                type: 'string',
-                format: 'at-uri',
-                description: 'AT URI of the community post to delete.',
-              },
-            },
+      source: {
+        type: 'object',
+        required: ['vary', 'subject', 'service'],
+        properties: {
+          vary: {
+            type: 'string',
+            knownValues: ['authenticated', 'unauthenticated'],
+            maxLength: 128,
+          },
+          subject: {
+            type: 'ref',
+            ref: 'lex:zone.stratos.defs#subjectRef',
+          },
+          service: {
+            type: 'string',
+            format: 'did',
           },
         },
-        output: {
-          encoding: 'application/json',
-          schema: {
-            type: 'object',
-            properties: {},
-          },
-        },
-        errors: [
-          {
-            name: 'MembershipRequired',
-            description: 'The requester is not a Blacksky community member.',
-          },
-          {
-            name: 'PostNotFound',
-            description:
-              'The specified community post was not found or does not belong to the requester.',
-          },
-        ],
       },
-    },
-  },
-  CommunityBlackskyFeedGetCommunityFeed: {
-    lexicon: 1,
-    id: 'community.blacksky.feed.getCommunityFeed',
-    defs: {
-      main: {
-        type: 'query',
-        description:
-          'Get community posts for a given actor. Only returns results if the requester is a Blacksky community member.',
-        parameters: {
-          type: 'params',
-          required: ['actor'],
-          properties: {
-            actor: {
-              type: 'string',
-              format: 'at-identifier',
-              description:
-                'DID or handle of the actor whose community posts to fetch.',
-            },
-            limit: {
-              type: 'integer',
-              minimum: 1,
-              maximum: 100,
-              default: 50,
-              description: 'Number of posts to return.',
-            },
-            cursor: {
-              type: 'string',
-              description: 'Pagination cursor.',
-            },
+      subjectRef: {
+        type: 'object',
+        required: ['uri', 'cid'],
+        properties: {
+          uri: {
+            type: 'string',
+            format: 'at-uri',
           },
-        },
-        output: {
-          encoding: 'application/json',
-          schema: {
-            type: 'object',
-            required: ['feed'],
-            properties: {
-              cursor: {
-                type: 'string',
-              },
-              feed: {
-                type: 'array',
-                items: {
-                  type: 'ref',
-                  ref: 'lex:app.bsky.feed.defs#feedViewPost',
-                },
-              },
-            },
-          },
-        },
-        errors: [
-          {
-            name: 'MembershipRequired',
-            description: 'The requester is not a Blacksky community member.',
-          },
-        ],
-      },
-    },
-  },
-  CommunityBlackskyFeedGetCommunityPost: {
-    lexicon: 1,
-    id: 'community.blacksky.feed.getCommunityPost',
-    defs: {
-      main: {
-        type: 'query',
-        description: 'Get a single community post by URI.',
-        parameters: {
-          type: 'params',
-          required: ['uri'],
-          properties: {
-            uri: {
-              type: 'string',
-              format: 'at-uri',
-              description: 'AT URI of the community post.',
-            },
-          },
-        },
-        output: {
-          encoding: 'application/json',
-          schema: {
-            type: 'object',
-            required: ['post'],
-            properties: {
-              post: {
-                type: 'ref',
-                ref: 'lex:app.bsky.feed.defs#postView',
-              },
-            },
-          },
-        },
-        errors: [
-          {
-            name: 'MembershipRequired',
-            description: 'The requester is not a Blacksky community member.',
-          },
-          {
-            name: 'PostNotFound',
-            description: 'The specified community post was not found.',
-          },
-        ],
-      },
-    },
-  },
-  CommunityBlackskyFeedGetCommunityTimeline: {
-    lexicon: 1,
-    id: 'community.blacksky.feed.getCommunityTimeline',
-    defs: {
-      main: {
-        type: 'query',
-        description: 'Get all community posts (timeline view)',
-        parameters: {
-          type: 'params',
-          properties: {
-            limit: {
-              type: 'integer',
-              minimum: 1,
-              maximum: 100,
-              default: 50,
-            },
-            cursor: {
-              type: 'string',
-            },
-          },
-        },
-        output: {
-          encoding: 'application/json',
-          schema: {
-            type: 'object',
-            required: ['feed'],
-            properties: {
-              cursor: {
-                type: 'string',
-              },
-              feed: {
-                type: 'array',
-                items: {
-                  type: 'ref',
-                  ref: 'lex:app.bsky.feed.defs#feedViewPost',
-                },
-              },
-            },
+          cid: {
+            type: 'string',
+            format: 'cid',
           },
         },
       },
     },
   },
-  CommunityBlackskyFeedLike: {
+  ZoneStratosBoundaryDefs: {
     lexicon: 1,
-    id: 'community.blacksky.feed.like',
+    id: 'zone.stratos.boundary.defs',
     defs: {
-      main: {
-        type: 'record',
-        description:
-          "Record declaring a 'like' of a Blacksky community post. Visible only to community members.",
-        key: 'tid',
-        record: {
-          type: 'object',
-          required: ['subject', 'createdAt'],
-          properties: {
-            subject: {
+      Domain: {
+        type: 'object',
+        required: ['value'],
+        properties: {
+          value: {
+            type: 'string',
+            maxLength: 253,
+          },
+        },
+      },
+      Domains: {
+        type: 'object',
+        required: ['values'],
+        properties: {
+          values: {
+            type: 'array',
+            items: {
               type: 'ref',
-              ref: 'lex:com.atproto.repo.strongRef',
+              ref: 'lex:zone.stratos.boundary.defs#Domain',
             },
-            createdAt: {
-              type: 'string',
-              format: 'datetime',
-            },
+            maxLength: 10,
           },
         },
       },
     },
   },
-  CommunityBlackskyFeedPost: {
+  ZoneStratosFeedPost: {
     lexicon: 1,
-    id: 'community.blacksky.feed.post',
+    id: 'zone.stratos.feed.post',
     defs: {
       main: {
         type: 'record',
-        description:
-          'Stub record for a Blacksky community post. Full content is stored on the Blacksky appview and hydrated for members only.',
         key: 'tid',
         record: {
           type: 'object',
           required: ['createdAt'],
           properties: {
-            createdAt: {
-              type: 'string',
-              format: 'datetime',
-              description:
-                'Client-declared timestamp when this post was originally created.',
-            },
-            cid: {
-              type: 'string',
-              format: 'cid',
-              description:
-                'CID of the full post content stored on the appview, for integrity verification.',
-            },
-          },
-        },
-      },
-    },
-  },
-  CommunityBlackskyFeedPostgate: {
-    lexicon: 1,
-    id: 'community.blacksky.feed.postgate',
-    defs: {
-      main: {
-        type: 'record',
-        key: 'tid',
-        description:
-          'Record defining interaction rules for a community post. The record key (rkey) must match the record key of the post.',
-        record: {
-          type: 'object',
-          required: ['post', 'createdAt'],
-          properties: {
-            createdAt: {
-              type: 'string',
-              format: 'datetime',
-            },
-            post: {
-              type: 'string',
-              format: 'at-uri',
-              description: 'Reference (AT-URI) to the community post record.',
-            },
-            detachedEmbeddingUris: {
-              type: 'array',
-              maxLength: 50,
-              items: {
-                type: 'string',
-                format: 'at-uri',
-              },
-              description:
-                'List of AT-URIs embedding this post that the author has detached from.',
-            },
-            embeddingRules: {
-              description: 'List of rules defining who can embed this post.',
-              type: 'array',
-              maxLength: 5,
-              items: {
-                type: 'union',
-                refs: ['lex:community.blacksky.feed.postgate#disableRule'],
-              },
-            },
-          },
-        },
-      },
-      disableRule: {
-        type: 'object',
-        description: 'Disables embedding of this post.',
-        properties: {},
-      },
-    },
-  },
-  CommunityBlackskyFeedRepost: {
-    lexicon: 1,
-    id: 'community.blacksky.feed.repost',
-    defs: {
-      main: {
-        description:
-          'Record representing a repost of a Blacksky community post. Visible only to community members.',
-        type: 'record',
-        key: 'tid',
-        record: {
-          type: 'object',
-          required: ['subject', 'createdAt'],
-          properties: {
-            subject: {
+            source: {
               type: 'ref',
-              ref: 'lex:com.atproto.repo.strongRef',
+              ref: 'lex:zone.stratos.defs#source',
+            },
+            text: {
+              type: 'string',
+              maxLength: 3000,
+              maxGraphemes: 300,
+            },
+            boundary: {
+              type: 'union',
+              refs: ['lex:zone.stratos.boundary.defs#Domains'],
+            },
+            facets: {
+              type: 'array',
+              items: {
+                type: 'ref',
+                ref: 'lex:app.bsky.richtext.facet',
+              },
+            },
+            reply: {
+              type: 'ref',
+              ref: 'lex:zone.stratos.feed.post#replyRef',
+            },
+            embed: {
+              type: 'union',
+              refs: [
+                'lex:app.bsky.embed.images',
+                'lex:app.bsky.embed.video',
+                'lex:app.bsky.embed.external',
+                'lex:app.bsky.embed.record',
+                'lex:app.bsky.embed.recordWithMedia',
+              ],
+            },
+            langs: {
+              type: 'array',
+              maxLength: 3,
+              items: {
+                type: 'string',
+                format: 'language',
+              },
+            },
+            labels: {
+              type: 'union',
+              refs: ['lex:com.atproto.label.defs#selfLabels'],
+            },
+            tags: {
+              type: 'array',
+              maxLength: 8,
+              items: {
+                type: 'string',
+                maxLength: 640,
+                maxGraphemes: 64,
+              },
             },
             createdAt: {
               type: 'string',
@@ -15709,129 +15534,6 @@ export const schemaDict = {
             },
           },
         },
-      },
-    },
-  },
-  CommunityBlackskyFeedSubmitPost: {
-    lexicon: 1,
-    id: 'community.blacksky.feed.submitPost',
-    defs: {
-      main: {
-        type: 'procedure',
-        description:
-          'Submit the full content of a community post to the Blacksky appview for storage. Called before writing the stub record to the PDS.',
-        input: {
-          encoding: 'application/json',
-          schema: {
-            type: 'object',
-            required: ['rkey', 'text', 'createdAt'],
-            properties: {
-              rkey: {
-                type: 'string',
-                description: 'The TID rkey for the post record.',
-              },
-              text: {
-                type: 'string',
-                maxLength: 3000,
-                maxGraphemes: 300,
-                description: 'The primary post content.',
-              },
-              facets: {
-                type: 'array',
-                description:
-                  'Annotations of text (mentions, URLs, hashtags, etc)',
-                items: {
-                  type: 'ref',
-                  ref: 'lex:app.bsky.richtext.facet',
-                },
-              },
-              reply: {
-                type: 'ref',
-                ref: 'lex:community.blacksky.feed.submitPost#replyRef',
-              },
-              embed: {
-                type: 'union',
-                refs: [
-                  'lex:app.bsky.embed.images',
-                  'lex:app.bsky.embed.video',
-                  'lex:app.bsky.embed.external',
-                  'lex:app.bsky.embed.record',
-                  'lex:app.bsky.embed.recordWithMedia',
-                ],
-              },
-              langs: {
-                type: 'array',
-                description:
-                  'Indicates human language of post primary text content.',
-                maxLength: 3,
-                items: {
-                  type: 'string',
-                  format: 'language',
-                },
-              },
-              labels: {
-                type: 'union',
-                description: 'Self-label values for this post.',
-                refs: ['lex:com.atproto.label.defs#selfLabels'],
-              },
-              tags: {
-                type: 'array',
-                description: 'Additional hashtags.',
-                maxLength: 8,
-                items: {
-                  type: 'string',
-                  maxLength: 640,
-                  maxGraphemes: 64,
-                },
-              },
-              createdAt: {
-                type: 'string',
-                format: 'datetime',
-                description: 'Client-declared timestamp.',
-              },
-              expectedCid: {
-                type: 'string',
-                format: 'cid',
-                description:
-                  "Client-computed CID for integrity verification. Server will reject if computed CID doesn't match.",
-              },
-            },
-          },
-        },
-        output: {
-          encoding: 'application/json',
-          schema: {
-            type: 'object',
-            required: ['uri'],
-            properties: {
-              uri: {
-                type: 'string',
-                format: 'at-uri',
-              },
-              cid: {
-                type: 'string',
-                format: 'cid',
-                description: 'CID of the stored content record.',
-              },
-            },
-          },
-        },
-        errors: [
-          {
-            name: 'MembershipRequired',
-            description: 'The requester is not a Blacksky community member.',
-          },
-          {
-            name: 'InvalidReply',
-            description:
-              'Reply target is not a community post or does not exist.',
-          },
-          {
-            name: 'CidMismatch',
-            description:
-              'The expectedCid does not match the server-computed CID. This indicates content tampering or encoding mismatch.',
-          },
-        ],
       },
       replyRef: {
         type: 'object',
@@ -15849,84 +15551,143 @@ export const schemaDict = {
       },
     },
   },
-  CommunityBlackskyFeedThreadgate: {
+  ZoneStratosFeedGetTimeline: {
     lexicon: 1,
-    id: 'community.blacksky.feed.threadgate',
+    id: 'zone.stratos.feed.getTimeline',
     defs: {
       main: {
-        type: 'record',
-        key: 'tid',
-        description:
-          "Record defining interaction gating rules for a community post thread. The record key (rkey) must match the record key of the thread's root post.",
-        record: {
-          type: 'object',
-          required: ['post', 'createdAt'],
+        type: 'query',
+        parameters: {
+          type: 'params',
           properties: {
-            post: {
+            boundary: {
               type: 'string',
-              format: 'at-uri',
-              description: 'Reference (AT-URI) to the community post record.',
             },
-            allow: {
-              description: 'List of rules defining who can reply to this post.',
-              type: 'array',
-              maxLength: 5,
-              items: {
-                type: 'union',
-                refs: [
-                  'lex:community.blacksky.feed.threadgate#mentionRule',
-                  'lex:community.blacksky.feed.threadgate#followerRule',
-                  'lex:community.blacksky.feed.threadgate#followingRule',
-                  'lex:community.blacksky.feed.threadgate#listRule',
-                ],
-              },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 100,
+              default: 50,
             },
-            createdAt: {
+            cursor: {
               type: 'string',
-              format: 'datetime',
             },
-            hiddenReplies: {
-              type: 'array',
-              maxLength: 300,
-              items: {
+          },
+        },
+        output: {
+          encoding: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['feed'],
+            properties: {
+              cursor: {
                 type: 'string',
-                format: 'at-uri',
               },
-              description: 'List of hidden reply URIs.',
+              feed: {
+                type: 'array',
+                items: {
+                  type: 'ref',
+                  ref: 'lex:app.bsky.feed.defs#feedViewPost',
+                },
+              },
             },
           },
         },
       },
-      mentionRule: {
-        type: 'object',
-        description: 'Allow replies from actors mentioned in the post.',
-        properties: {},
+    },
+  },
+  ZoneStratosFeedGetPost: {
+    lexicon: 1,
+    id: 'zone.stratos.feed.getPost',
+    defs: {
+      main: {
+        type: 'query',
+        parameters: {
+          type: 'params',
+          required: ['uri'],
+          properties: {
+            uri: {
+              type: 'string',
+              format: 'at-uri',
+            },
+          },
+        },
+        output: {
+          encoding: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['post'],
+            properties: {
+              post: {
+                type: 'ref',
+                ref: 'lex:app.bsky.feed.defs#feedViewPost',
+              },
+            },
+          },
+        },
+        errors: [
+          { name: 'PostNotFound' },
+          { name: 'NotEnrolled' },
+          { name: 'BoundaryMismatch' },
+        ],
       },
-      followerRule: {
-        type: 'object',
-        description: 'Allow replies from actors who follow you.',
-        properties: {},
-      },
-      followingRule: {
-        type: 'object',
-        description: 'Allow replies from actors you follow.',
-        properties: {},
-      },
-      listRule: {
-        type: 'object',
-        description: 'Allow replies from actors on a list.',
-        required: ['list'],
-        properties: {
-          list: {
-            type: 'string',
-            format: 'at-uri',
+    },
+  },
+  ZoneStratosFeedGetAuthorFeed: {
+    lexicon: 1,
+    id: 'zone.stratos.feed.getAuthorFeed',
+    defs: {
+      main: {
+        type: 'query',
+        parameters: {
+          type: 'params',
+          required: ['actor'],
+          properties: {
+            actor: {
+              type: 'string',
+              format: 'at-identifier',
+            },
+            boundary: {
+              type: 'string',
+            },
+            limit: {
+              type: 'integer',
+              minimum: 1,
+              maximum: 100,
+              default: 50,
+            },
+            cursor: {
+              type: 'string',
+            },
+          },
+        },
+        output: {
+          encoding: 'application/json',
+          schema: {
+            type: 'object',
+            required: ['feed'],
+            properties: {
+              cursor: {
+                type: 'string',
+              },
+              feed: {
+                type: 'array',
+                items: {
+                  type: 'ref',
+                  ref: 'lex:app.bsky.feed.defs#feedViewPost',
+                },
+              },
+            },
           },
         },
       },
     },
   },
 } as const satisfies Record<string, LexiconDoc>
-export const schemas = Object.values(schemaDict) satisfies LexiconDoc[]
+export const schemas = [
+  ...Object.values(schemaDict),
+  ...Object.values(stratosSchemaDict),
+] satisfies LexiconDoc[]
 export const lexicons: Lexicons = new Lexicons(schemas)
 
 export function validate<T extends { $type: string }>(
@@ -16248,17 +16009,10 @@ export const ids = {
   ComAtprotoTempRevokeAccountCredentials:
     'com.atproto.temp.revokeAccountCredentials',
   ComGermnetworkDeclaration: 'com.germnetwork.declaration',
-  CommunityBlackskyFeedDeletePost: 'community.blacksky.feed.deletePost',
-  CommunityBlackskyFeedGetCommunityFeed:
-    'community.blacksky.feed.getCommunityFeed',
-  CommunityBlackskyFeedGetCommunityPost:
-    'community.blacksky.feed.getCommunityPost',
-  CommunityBlackskyFeedGetCommunityTimeline:
-    'community.blacksky.feed.getCommunityTimeline',
-  CommunityBlackskyFeedLike: 'community.blacksky.feed.like',
-  CommunityBlackskyFeedPost: 'community.blacksky.feed.post',
-  CommunityBlackskyFeedPostgate: 'community.blacksky.feed.postgate',
-  CommunityBlackskyFeedRepost: 'community.blacksky.feed.repost',
-  CommunityBlackskyFeedSubmitPost: 'community.blacksky.feed.submitPost',
-  CommunityBlackskyFeedThreadgate: 'community.blacksky.feed.threadgate',
+  ZoneStratosDefs: 'zone.stratos.defs',
+  ZoneStratosBoundaryDefs: 'zone.stratos.boundary.defs',
+  ZoneStratosFeedPost: 'zone.stratos.feed.post',
+  ZoneStratosFeedGetTimeline: 'zone.stratos.feed.getTimeline',
+  ZoneStratosFeedGetPost: 'zone.stratos.feed.getPost',
+  ZoneStratosFeedGetAuthorFeed: 'zone.stratos.feed.getAuthorFeed',
 } as const

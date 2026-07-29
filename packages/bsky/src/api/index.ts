@@ -38,6 +38,9 @@ import getRepostedBy from './app/bsky/feed/getRepostedBy'
 import getSuggestedFeeds from './app/bsky/feed/getSuggestedFeeds'
 import getTimeline from './app/bsky/feed/getTimeline'
 import searchPosts from './app/bsky/feed/searchPosts'
+import stratosGetTimeline from './zone/stratos/feed/getTimeline'
+import stratosGetPost from './zone/stratos/feed/getPost'
+import stratosGetAuthorFeed from './zone/stratos/feed/getAuthorFeed'
 import getActorStarterPacks from './app/bsky/graph/getActorStarterPacks'
 import getBlocks from './app/bsky/graph/getBlocks'
 import getFollowers from './app/bsky/graph/getFollowers'
@@ -92,11 +95,6 @@ import resolveHandle from './com/atproto/identity/resolveHandle'
 import queryLabels from './com/atproto/label/queryLabels'
 import getRecord from './com/atproto/repo/getRecord'
 import fetchLabels from './com/atproto/temp/fetchLabels'
-import deleteCommunityPost from './community/blacksky/feed/deletePost'
-import getCommunityFeed from './community/blacksky/feed/getCommunityFeed'
-import getCommunityPost from './community/blacksky/feed/getCommunityPost'
-import getCommunityTimeline from './community/blacksky/feed/getCommunityTimeline'
-import submitCommunityPost from './community/blacksky/feed/submitPost'
 
 export * as health from './health'
 
@@ -195,12 +193,6 @@ export default function (server: Server, ctx: AppContext) {
   aaGetConfig(server, ctx)
   aaGetState(server, ctx)
   aaBegin(server, ctx)
-  // community.blacksky
-  deleteCommunityPost(server, ctx)
-  getCommunityFeed(server, ctx)
-  getCommunityPost(server, ctx)
-  getCommunityTimeline(server, ctx)
-  submitCommunityPost(server, ctx)
   // com.atproto
   getSubjectStatus(server, ctx)
   updateSubjectStatus(server, ctx)
@@ -209,5 +201,9 @@ export default function (server: Server, ctx: AppContext) {
   getRecord(server, ctx)
   fetchLabels(server, ctx)
   queryLabels(server, ctx)
+  // zone.stratos
+  stratosGetTimeline(server, ctx)
+  stratosGetPost(server, ctx)
+  stratosGetAuthorFeed(server, ctx)
   return server
 }

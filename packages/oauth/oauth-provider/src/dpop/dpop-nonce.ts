@@ -42,7 +42,7 @@ export class DpopNonce {
   #next: string
 
   constructor(
-    secret: DpopSecret = randomBytes(SECRET_BYTE_LENGTH),
+    secret: DpopSecret = randomBytes(SECRET_BYTE_LENGTH) as Uint8Array<ArrayBuffer>,
     rotationInterval = MAX_ROTATION_INTERVAL,
   ) {
     this.#rotationInterval = rotationIntervalSchema.parse(rotationInterval)

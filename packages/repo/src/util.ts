@@ -87,7 +87,7 @@ export const signCommit = async (
   const sig = await keypair.sign(encoded)
   return {
     ...unsigned,
-    sig,
+    sig: sig as Uint8Array<ArrayBuffer>,
   }
 }
 

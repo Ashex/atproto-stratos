@@ -141,31 +141,24 @@ export class IndexingService {
     const handle: string | null =
       did === handleToDid ? atpData.handle.toLowerCase() : null
 
-    const actorWithHandle =
-      handle !== null
-        ? await this.db.db
-            .selectFrom('actor')
-            .where('handle', '=', handle)
-            .selectAll()
-            .executeTakeFirst()
-        : null
-
-    // handle contention
-    if (handle && actorWithHandle && did !== actorWithHandle.did) {
-      await this.db.db
-        .updateTable('actor')
-        .where('actor.did', '=', actorWithHandle.did)
-        .set({ handle: null })
-        .execute()
-    }
-
     const actorInfo = { handle, indexedAt: timestamp }
-    await this.db.db
-      .insertInto('actor')
-      .values({ did, ...actorInfo })
-      .onConflict((oc) => oc.column('did').doUpdateSet(actorInfo))
-      .returning('did')
-      .executeTakeFirst()
+    await this.db.transaction(async (txn) => {
+      if (handle !== null) {
+        // Clear handle from any other actor to resolve contention
+        await txn.db
+          .updateTable('actor')
+          .where('handle', '=', handle)
+          .where('did', '!=', did)
+          .set({ handle: null })
+          .execute()
+      }
+      await txn.db
+        .insertInto('actor')
+        .values({ did, ...actorInfo })
+        .onConflict((oc) => oc.column('did').doUpdateSet(actorInfo))
+        .returning('did')
+        .executeTakeFirst()
+    })
   }
 
   async indexRepo(did: string, commit?: string) {
@@ -268,7 +261,7 @@ export class IndexingService {
     let upstreamStatus: string | null
     if (active) {
       upstreamStatus = null
-    } else if (['deactivated', 'suspended', 'takendown'].includes(status)) {
+    } else if (['deactivated', 'suspended', 'takendown', 'throttled'].includes(status)) {
       upstreamStatus = status
     } else {
       throw new Error(`Unrecognized account status: ${status}`)

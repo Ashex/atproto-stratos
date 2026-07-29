@@ -204,7 +204,7 @@ function xrpcProcedureInput(
         body instanceof ArrayBuffer ||
         body instanceof ReadableStream
       ) {
-        return buildPayload(input, body, encodingHint)
+        return buildPayload(input, body as BodyInit, encodingHint)
       } else if (isAsyncIterable(body)) {
         return buildPayload(input, toReadableStream(body), encodingHint)
       } else if (isBlobLike(body)) {

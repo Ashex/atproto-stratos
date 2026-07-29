@@ -3,7 +3,7 @@ export function ui8ToBuffer(bytes: Uint8Array): Buffer {
 }
 
 export function ui8ToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
+  return (bytes.buffer as ArrayBuffer).slice(
     bytes.byteOffset,
     bytes.byteLength + bytes.byteOffset,
   )

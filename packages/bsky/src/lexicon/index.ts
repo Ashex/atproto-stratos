@@ -220,11 +220,9 @@ import * as ComAtprotoTempDereferenceScope from './types/com/atproto/temp/derefe
 import * as ComAtprotoTempFetchLabels from './types/com/atproto/temp/fetchLabels.js'
 import * as ComAtprotoTempRequestPhoneVerification from './types/com/atproto/temp/requestPhoneVerification.js'
 import * as ComAtprotoTempRevokeAccountCredentials from './types/com/atproto/temp/revokeAccountCredentials.js'
-import * as CommunityBlackskyFeedDeletePost from './types/community/blacksky/feed/deletePost.js'
-import * as CommunityBlackskyFeedGetCommunityFeed from './types/community/blacksky/feed/getCommunityFeed.js'
-import * as CommunityBlackskyFeedGetCommunityPost from './types/community/blacksky/feed/getCommunityPost.js'
-import * as CommunityBlackskyFeedGetCommunityTimeline from './types/community/blacksky/feed/getCommunityTimeline.js'
-import * as CommunityBlackskyFeedSubmitPost from './types/community/blacksky/feed/submitPost.js'
+import * as ZoneStratosFeedGetTimeline from './types/zone/stratos/feed/getTimeline.js'
+import * as ZoneStratosFeedGetPost from './types/zone/stratos/feed/getPost.js'
+import * as ZoneStratosFeedGetAuthorFeed from './types/zone/stratos/feed/getAuthorFeed.js'
 
 export const APP_BSKY_ACTOR = {
   StatusLive: 'app.bsky.actor.status#live',
@@ -269,14 +267,14 @@ export class Server {
   app: AppNS
   chat: ChatNS
   com: ComNS
-  community: CommunityNS
+  zone: ZoneNS
 
   constructor(options?: XrpcOptions) {
     this.xrpc = createXrpcServer(schemas, options)
     this.app = new AppNS(this)
     this.chat = new ChatNS(this)
     this.com = new ComNS(this)
-    this.community = new CommunityNS(this)
+    this.zone = new ZoneNS(this)
   }
 }
 
@@ -3112,90 +3110,77 @@ export class ComGermnetworkNS {
   }
 }
 
-export class CommunityNS {
+export class ZoneNS {
   _server: Server
-  blacksky: CommunityBlackskyNS
+  stratos: ZoneStratosNS
 
   constructor(server: Server) {
     this._server = server
-    this.blacksky = new CommunityBlackskyNS(server)
+    this.stratos = new ZoneStratosNS(server)
   }
 }
 
-export class CommunityBlackskyNS {
+export class ZoneStratosNS {
   _server: Server
-  feed: CommunityBlackskyFeedNS
+  boundary: ZoneStratosBoundaryNS
+  feed: ZoneStratosFeedNS
 
   constructor(server: Server) {
     this._server = server
-    this.feed = new CommunityBlackskyFeedNS(server)
+    this.boundary = new ZoneStratosBoundaryNS(server)
+    this.feed = new ZoneStratosFeedNS(server)
   }
 }
 
-export class CommunityBlackskyFeedNS {
+export class ZoneStratosBoundaryNS {
+  _server: Server
+
+  constructor(server: Server) {
+    this._server = server
+  }
+}
+
+export class ZoneStratosFeedNS {
   _server: Server
 
   constructor(server: Server) {
     this._server = server
   }
 
-  deletePost<A extends Auth = void>(
+  getTimeline<A extends Auth = void>(
     cfg: MethodConfigOrHandler<
       A,
-      CommunityBlackskyFeedDeletePost.QueryParams,
-      CommunityBlackskyFeedDeletePost.HandlerInput,
-      CommunityBlackskyFeedDeletePost.HandlerOutput
+      ZoneStratosFeedGetTimeline.QueryParams,
+      ZoneStratosFeedGetTimeline.HandlerInput,
+      ZoneStratosFeedGetTimeline.HandlerOutput
     >,
   ) {
-    const nsid = 'community.blacksky.feed.deletePost' // @ts-ignore
+    const nsid = 'zone.stratos.feed.getTimeline' // @ts-ignore
     return this._server.xrpc.method(nsid, cfg)
   }
 
-  getCommunityFeed<A extends Auth = void>(
+  getPost<A extends Auth = void>(
     cfg: MethodConfigOrHandler<
       A,
-      CommunityBlackskyFeedGetCommunityFeed.QueryParams,
-      CommunityBlackskyFeedGetCommunityFeed.HandlerInput,
-      CommunityBlackskyFeedGetCommunityFeed.HandlerOutput
+      ZoneStratosFeedGetPost.QueryParams,
+      ZoneStratosFeedGetPost.HandlerInput,
+      ZoneStratosFeedGetPost.HandlerOutput
     >,
   ) {
-    const nsid = 'community.blacksky.feed.getCommunityFeed' // @ts-ignore
+    const nsid = 'zone.stratos.feed.getPost' // @ts-ignore
     return this._server.xrpc.method(nsid, cfg)
   }
 
-  getCommunityPost<A extends Auth = void>(
+  getAuthorFeed<A extends Auth = void>(
     cfg: MethodConfigOrHandler<
       A,
-      CommunityBlackskyFeedGetCommunityPost.QueryParams,
-      CommunityBlackskyFeedGetCommunityPost.HandlerInput,
-      CommunityBlackskyFeedGetCommunityPost.HandlerOutput
+      ZoneStratosFeedGetAuthorFeed.QueryParams,
+      ZoneStratosFeedGetAuthorFeed.HandlerInput,
+      ZoneStratosFeedGetAuthorFeed.HandlerOutput
     >,
   ) {
-    const nsid = 'community.blacksky.feed.getCommunityPost' // @ts-ignore
-    return this._server.xrpc.method(nsid, cfg)
-  }
-
-  getCommunityTimeline<A extends Auth = void>(
-    cfg: MethodConfigOrHandler<
-      A,
-      CommunityBlackskyFeedGetCommunityTimeline.QueryParams,
-      CommunityBlackskyFeedGetCommunityTimeline.HandlerInput,
-      CommunityBlackskyFeedGetCommunityTimeline.HandlerOutput
-    >,
-  ) {
-    const nsid = 'community.blacksky.feed.getCommunityTimeline' // @ts-ignore
-    return this._server.xrpc.method(nsid, cfg)
-  }
-
-  submitPost<A extends Auth = void>(
-    cfg: MethodConfigOrHandler<
-      A,
-      CommunityBlackskyFeedSubmitPost.QueryParams,
-      CommunityBlackskyFeedSubmitPost.HandlerInput,
-      CommunityBlackskyFeedSubmitPost.HandlerOutput
-    >,
-  ) {
-    const nsid = 'community.blacksky.feed.submitPost' // @ts-ignore
+    const nsid = 'zone.stratos.feed.getAuthorFeed' // @ts-ignore
     return this._server.xrpc.method(nsid, cfg)
   }
 }
+

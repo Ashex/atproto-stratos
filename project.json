@@ -1,0 +1,48 @@
+{
+  "name": "atproto-stratos",
+  "root": "atproto-stratos",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "atproto-stratos",
+        "command": "pnpm build"
+      }
+    },
+    "codegen": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "atproto-stratos",
+        "command": "pnpm codegen"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "atproto-stratos",
+        "command": "pnpm lint"
+      }
+    },
+    "format": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "atproto-stratos",
+        "command": "pnpm format"
+      }
+    },
+    "format-check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "atproto-stratos",
+        "command": "pnpm style"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "atproto-stratos",
+        "command": "pnpm test"
+      }
+    }
+  }
+}
